@@ -53,11 +53,6 @@ PROCEDURE_DEPTH_CONFIGS: dict[str, DepthModConfig] = {
         intensity=20.0,
         center_landmark=168,  # glabella (between eyes)
     ),
-        sigma_x_frac=0.10,
-        sigma_y_frac=0.10,
-        intensity=35.0,
-        center_landmark=152,  # chin point
-    ),
     "rhytidectomy": DepthModConfig(
         sigma_x_frac=0.15,
         sigma_y_frac=0.15,
