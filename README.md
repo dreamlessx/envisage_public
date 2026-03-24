@@ -18,7 +18,7 @@
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/code%20style-ruff-000000.svg" alt="Code style: ruff"></a>
 </p>
 
-Predict what a patient will look like after facial surgery from a single photograph. Zero training required -- identity preserved by architecture, not optimization.
+Predict what a patient will look like after facial surgery from a single photograph. Zero training required. Identity preserved by architecture, not optimization.
 
 <table align="center">
 <tr>
@@ -43,7 +43,7 @@ Predict what a patient will look like after facial surgery from a single photogr
 
 ### Where We're Headed
 
-Envisage ships as a zero-shot inpainting system built on FLUX.1-dev. The approach works well for focal procedures (rhinoplasty, blepharoplasty) where the surgical region is small relative to the face. The next steps are: (1) extend to orthognathic surgery, where jaw repositioning affects a much larger facial area; (2) add interactive intensity control so clinicians can preview subtle through aggressive versions of a procedure; and (3) move toward 3D -- reconstruct a face model from a short phone video and apply surgical deformations in 3D space for multi-angle visualization. No depth sensors, no clinical scanning rigs. Just a phone camera.
+Envisage ships as a zero-shot inpainting system built on FLUX.1-dev. The approach works well for focal procedures (rhinoplasty, blepharoplasty) where the surgical region is small relative to the face. The next steps are: (1) extend to orthognathic surgery, where jaw repositioning affects a much larger facial area; (2) add interactive intensity control so clinicians can preview subtle through aggressive versions of a procedure; and (3) move toward 3D: reconstruct a face model from a short phone video and apply surgical deformations in 3D space for multi-angle visualization. No depth sensors, no clinical scanning rigs. Just a phone camera.
 
 > **Paper:** "Envisage: Depth-Conditioned Diffusion Inpainting for Facial Surgery Outcome Prediction," under review, 2026.
 
@@ -78,7 +78,7 @@ Our earlier system, [LandmarkDiff](https://github.com/dreamlessx/LandmarkDiff-pu
 |:-------------|:---------|:----|
 | SD 1.5 at 512x512 | FLUX.1-dev at 1024x1024 | Sufficient resolution for clinical facial detail |
 | Sparse wireframe conditioning | Dense depth maps (Depth Anything V2) | No information loss between landmarks |
-| Full-face generation + compositing | Inpainting | Architectural identity preservation -- non-surgical pixels are never regenerated |
+| Full-face generation + compositing | Inpainting | Architectural identity preservation; non-surgical pixels are never regenerated |
 | TPS synthetic training data | Zero-shot pretrained weights | Avoids geometric artifacts from training on warped faces |
 | Full-face ArcFace only | Decomposed evaluation | Prevents compositing from inflating identity metrics |
 
@@ -106,7 +106,7 @@ Procedure-specific thin-plate spline warp applies geometric changes before diffu
 
 ### Stage 3: Mask Generation
 
-Convex hull of procedure-specific landmarks, dilated and feathered. Blepharoplasty uses adaptive per-eye dilation proportional to measured hooding. Rhytidectomy follows the jaw contour. The mask defines which pixels the diffusion model may modify -- everything outside is copied from the input.
+Convex hull of procedure-specific landmarks, dilated and feathered. Blepharoplasty uses adaptive per-eye dilation proportional to measured hooding. Rhytidectomy follows the jaw contour. The mask defines which pixels the diffusion model may modify. Everything outside is copied from the input.
 
 ### Stage 4: Depth Modification
 
@@ -114,7 +114,7 @@ Gaussian displacement kernels simulate tissue changes on the Depth Anything V2 d
 
 ### Stage 5: FLUX.1-dev Inpainting
 
-A pretrained depth ControlNet conditions the diffusion model on the modified depth map. Only the masked region is regenerated. Pixels outside the mask are copied from the input -- identity preservation is architectural, not learned.
+A pretrained depth ControlNet conditions the diffusion model on the modified depth map. Only the masked region is regenerated. Pixels outside the mask are copied from the input. Identity preservation is architectural, not learned.
 
 ### Stage 6: Seed Sweep
 
@@ -223,10 +223,10 @@ Evaluated on the [HDA Plastic Surgery Database](https://doi.org/10.1109/CVPRW504
 | Rhinoplasty | 34 | **0.802** | 0.607 | **0.380** |
 | Blepharoplasty | 51 | **0.745** | 0.670 | **0.370** |
 | Rhytidectomy | 19 | 0.173 | **0.360** | **0.369** |
-| Orthognathic | 21 | -- | **0.568** | **0.395** |
+| Orthognathic | 21 | N/A | **0.568** | **0.395** |
 | **Overall** | **125** | **0.631** | 0.551 | **0.377** |
 
-LandmarkDiff scores include compositing (pasting the generated face back onto the original image). Without compositing, LandmarkDiff rhinoplasty ArcFace drops from 0.607 to 0.023, indicating the SD 1.5 model contributed almost no identity preservation on its own. Envisage scores are reported without compositing -- the inpainting formulation inherently preserves non-surgical pixels.
+LandmarkDiff scores include compositing (pasting the generated face back onto the original image). Without compositing, LandmarkDiff rhinoplasty ArcFace drops from 0.607 to 0.023, indicating the SD 1.5 model contributed almost no identity preservation on its own. Envisage scores are reported without compositing; the inpainting formulation inherently preserves non-surgical pixels.
 
 ### Decomposed Identity Evaluation
 
