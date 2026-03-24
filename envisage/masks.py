@@ -284,7 +284,7 @@ def generate_adaptive_rhytid_mask(
     has_neck = neck_extent > h * 0.1  # at least 10% of image below chin
 
     if not has_neck:
-        # Image cropped at chin -- only do jawline, skip neck
+        # Image cropped at chin; only do jawline, skip neck
         # Restrict mask to a band around the jaw contour
         jaw_band = np.zeros((h, w), dtype=np.uint8)
         for i in range(len(sorted_jaw) - 1):

@@ -193,7 +193,7 @@ def modify_depth(
         x1, x2 = max(0, nose_cx - r), min(w, nose_cx + r)
         nose_depth_patch = depth[y1:y2, x1:x2]
         nose_depth_range = float(nose_depth_patch.max() - nose_depth_patch.min()) if nose_depth_patch.size > 0 else 40.0
-        # Intensity proportional to depth range -- a flat nose needs less modification
+        # Intensity proportional to depth range; a flat nose needs less modification
         adaptive_intensity = config.intensity * (nose_depth_range / 40.0) * scale
 
         # 1. Dorsal hump reduction (Gaussian sigma scaled to nose dimensions)

@@ -1,4 +1,4 @@
-"""envisage -- Facial Surgery Outcome Prediction Demo.
+"""envisage: Facial Surgery Outcome Prediction Demo.
 
 Gradio app for predicting rhinoplasty outcomes using FLUX.1-dev
 inpainting with depth-conditioned ControlNet.
@@ -346,11 +346,11 @@ def _measure_arcface(input_img: Image.Image, output_img: Image.Image) -> float:
 def create_demo() -> gr.Blocks:
     """Build the Gradio demo interface."""
     with gr.Blocks(
-        title="envisage -- Surgical Outcome Prediction",
+        title="envisage: Surgical Outcome Prediction",
     ) as demo:
         gr.Markdown(
             """
-            # envisage -- Facial Surgery Outcome Prediction
+            # envisage: Facial Surgery Outcome Prediction
             Upload a frontal face photo, select a rhinoplasty sub-type, adjust
             intensity, and generate a predicted post-surgical result.
 

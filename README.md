@@ -49,7 +49,7 @@ Existing approaches to surgical outcome prediction fall into five categories. Ea
 
 | Approach | Examples | Core limitation | Envisage alternative |
 |:---------|:---------|:----------------|:---------------------|
-| Commercial hardware systems | Crisalix, Vectra 3D | $30,000--50,000 dedicated hardware; proprietary; results not reproducible | Single 2D photo input. Open-source code and evaluation framework. |
+| Commercial hardware systems | Crisalix, Vectra 3D | $30,000-50,000 dedicated hardware; proprietary; results not reproducible | Single 2D photo input. Open-source code and evaluation framework. |
 | GAN-based prediction | Jung et al. (2022) | 52.5% Visual Turing test: predictions are distinguishable from real outcomes nearly half the time | FLUX.1-dev produces photorealistic 1024x1024 outputs zero-shot. |
 | Landmark-conditioned diffusion | LandmarkDiff (our prior work) | 97% of identity score came from compositing, not the model. SD 1.5 at 512x512 lacked resolution for clinical detail. | Inpainting preserves identity architecturally. Decomposed ArcFace prevents compositing from inflating metrics. |
 | Generic face editors | DragDiffusion, FaceApp | No anatomical priors, no procedure-specific guidance, no clinical evaluation | Depth conditioning maps to tissue displacement. Parameters scale with measured anatomy per procedure. |
@@ -265,7 +265,7 @@ LandmarkDiff scores include compositing (pasting the generated face back onto th
 | Region | ArcFace |
 |:-------|:---:|
 | Full face | 0.631 |
-| Non-surgical region | 0.985--0.989 |
+| Non-surgical region | 0.985-0.989 |
 
 > Rhytidectomy requires regenerating 46% of the face area (jawline through neck), making identity preservation inherently harder than focal procedures. With tuned per-example parameters, ArcFace reaches 0.982. The low automated score (0.173) reflects the generic mask, not the approach's ceiling.
 
@@ -281,7 +281,7 @@ All metrics are stratified by the 10-point Monk Skin Tone (MST) Scale to evaluat
 | 6 | Medium-Dark | 3 | 0.577 |
 | 8 | Dark | 1 | 0.604 |
 
-The dataset's skin tone distribution is narrow (MST 5--8 only), which limits conclusions about equity across the full MST range. Broader evaluation on a more diverse dataset is planned.
+The dataset's skin tone distribution is narrow (MST 5-8 only), which limits conclusions about equity across the full MST range. Evaluation is limited by the demographic composition of the HDA dataset, which skews toward lighter skin tones (MST 5-8). Broader evaluation on a more diverse dataset is planned.
 
 ---
 

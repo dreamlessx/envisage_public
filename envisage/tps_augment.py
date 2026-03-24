@@ -125,7 +125,7 @@ def compute_tps_warp(
     # Apply warp
     warped = tps.warpImage(image)
 
-    # TPS can leave black borders -- fill with original pixels
+    # TPS can leave black borders; fill with original pixels
     gray = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
     black_mask = gray == 0
     if black_mask.any():
@@ -279,7 +279,7 @@ def add_boundary_points(
 
     border = np.array(border, dtype=np.float32)
     src_out = np.vstack([src, border])
-    dst_out = np.vstack([dst, border])  # identity -- no displacement at borders
+    dst_out = np.vstack([dst, border])  # identity: no displacement at borders
     return src_out, dst_out
 
 

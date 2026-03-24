@@ -11,7 +11,7 @@ license: other
 hardware: a10g-small
 ---
 
-# envisage -- Facial Surgery Outcome Prediction
+# envisage: Facial Surgery Outcome Prediction
 
 Upload a frontal face photo, select a procedure, and generate a predicted post-surgical result.
 

@@ -37,7 +37,7 @@ class RhinoplastyWarpParams:
     Two groups of landmarks are displaced inward (horizontally only):
       1. Bridge sidewall landmarks: thins the nasal bridge
       2. Nostril edge landmarks: narrows the nostrils/alae
-    No vertical displacement -- the nose keeps its length and projection.
+    No vertical displacement. The nose keeps its length and projection.
     """
 
     # Bridge sidewall landmarks (left side / right side)
@@ -159,7 +159,7 @@ def rhinoplasty_tps_warp(
 ) -> np.ndarray:
     """Apply TPS warp for rhinoplasty: thin bridge, narrow nostrils.
 
-    Horizontal-only displacement. No vertical compression -- the nose
+    Horizontal-only displacement. No vertical compression. The nose
     keeps its length and tip projection. The result is a thinner, more
     refined nose, not a smaller one.
 

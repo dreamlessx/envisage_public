@@ -462,3 +462,18 @@ def run_pipeline(
         procedure=procedure,
         landmarks=landmarks,
     )
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run Envisage prediction pipeline")
+    parser.add_argument("--image", type=str, required=True, help="Path to input face image")
+    parser.add_argument("--procedure", type=str, default="rhinoplasty", choices=["rhinoplasty", "blepharoplasty", "rhytidectomy"])
+    parser.add_argument("--output", type=str, default="prediction.png", help="Output path")
+    parser.add_argument("--intensity", type=float, default=100.0, help="Intensity 0-100")
+    parser.add_argument("--seed-sweep", action="store_true", default=True)
+    args = parser.parse_args()
+
+    # Note: requires FLUX pipeline loaded separately (GPU needed)
+    print(f"Pipeline CLI: {args.procedure} on {args.image}")
+    print("Note: Full inference requires GPU. Use app.py for the Gradio demo.")

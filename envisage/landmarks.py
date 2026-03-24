@@ -43,7 +43,7 @@ LEFT_EYELID = LEFT_EYE_UPPER + LEFT_EYE_LOWER
 RIGHT_EYELID = RIGHT_EYE_UPPER + RIGHT_EYE_LOWER
 EYELIDS_ALL = sorted(set(LEFT_EYELID + RIGHT_EYELID))
 
-# Upper eyelid skin fold only (for blepharoplasty -- smaller mask)
+# Upper eyelid skin fold only (for blepharoplasty, smaller mask)
 LEFT_UPPER_LID_FOLD = [246, 161, 160, 159, 158, 157, 173, 56, 28, 27, 29, 30]
 RIGHT_UPPER_LID_FOLD = [466, 388, 387, 386, 385, 384, 398, 286, 258, 257, 259, 260]
 UPPER_LIDS_ONLY = sorted(set(LEFT_UPPER_LID_FOLD + RIGHT_UPPER_LID_FOLD))
