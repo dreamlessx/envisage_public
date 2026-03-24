@@ -11,7 +11,6 @@ Evaluated on the HDA Plastic Surgery benchmark (67 test pairs, 4 procedures).
 | Rhinoplasty | 21 | **0.802** | 0.380 | 0.549 | 0.607 |
 | Blepharoplasty | 27 | **0.745** | 0.370 | 0.492 | 0.670 |
 | Rhytidectomy | 9 | 0.173 | 0.369 | 0.554 | 0.360 |
-| Orthognathic | 10 | -- | 0.395 | 0.533 | 0.568 |
 | **Overall** | **67** | **0.631** | **0.377** | 0.524 | 0.551 |
 
 Non-surgical region ArcFace: **0.985--0.989** (near-perfect identity preservation outside the mask).

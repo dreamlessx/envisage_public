@@ -65,7 +65,6 @@ FACE_OVAL = [
 PROCEDURE_LANDMARKS: dict[str, list[int]] = {
     "rhinoplasty": NOSE_ALL,
     "blepharoplasty": UPPER_LIDS_ONLY,
-    "orthognathic": JAW_CONTOUR + CHIN,
     "rhytidectomy": JAW_CONTOUR + FACE_OVAL,
 }
 
@@ -192,7 +191,7 @@ def get_region_points(
 
     Args:
         landmarks: Full 478-point landmarks.
-        procedure: One of 'rhinoplasty', 'blepharoplasty', 'orthognathic'.
+        procedure: One of 'rhinoplasty', 'blepharoplasty', 'rhytidectomy'.
 
     Returns:
         (N, 2) array of landmark points for the procedure region.

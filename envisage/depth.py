@@ -9,7 +9,6 @@ configurable depth modification for surgical simulation:
 Supported modifications:
   - rhinoplasty: dorsal hump reduction (flatten nasal bridge depth)
   - blepharoplasty: lid region depth smoothing
-  - orthognathic: jaw projection depth change
 """
 
 from __future__ import annotations
@@ -54,7 +53,6 @@ PROCEDURE_DEPTH_CONFIGS: dict[str, DepthModConfig] = {
         intensity=20.0,
         center_landmark=168,  # glabella (between eyes)
     ),
-    "orthognathic": DepthModConfig(
         sigma_x_frac=0.10,
         sigma_y_frac=0.10,
         intensity=35.0,
@@ -165,7 +163,6 @@ def modify_depth(
         centers = {
             "rhinoplasty": (0.50, 0.48),
             "blepharoplasty": (0.50, 0.38),
-            "orthognathic": (0.50, 0.72),
             "rhytidectomy": (0.50, 0.60),
         }
         cx_f, cy_f = centers.get(procedure, (0.50, 0.50))

@@ -44,8 +44,8 @@ to reflect the target tissue displacement, then use a pretrained
 depth-conditioned diffusion model to regenerate the masked area. We
 introduce decomposed identity evaluation, in which ArcFace cosine
 similarity is measured separately on the surgical region, non-surgical
-region, and full face. On the HDA Plastic Surgery benchmark (67 test
-pairs, 4 procedures), \method{} achieves 0.802 ArcFace for rhinoplasty
+region, and full face. On the HDA Plastic Surgery benchmark (57 test
+pairs, 3 procedures), \method{} achieves 0.802 ArcFace for rhinoplasty
 (compared to 0.607 for a full-face diffusion baseline, +32\%) and 0.745
 for blepharoplasty (+11\%), with non-surgical region ArcFace of
 0.985--0.989. These results are obtained with zero task-specific
@@ -371,7 +371,7 @@ procedures.
 
 \begin{table}[t]
 \centering
-\caption{Per-procedure results on the HDA test set (67 pairs). ArcFace
+\caption{Per-procedure results on the HDA test set (57 pairs). ArcFace
 measures identity preservation (prediction vs.\ input; higher is better).
 LPIPS and SSIM measure similarity to the ground-truth post-operative image.
 Best in \textbf{bold}.}
@@ -391,7 +391,6 @@ Blepharo.    & Prior (SD~1.5)       & 27 & 0.670          & 0.388          & -- 
 Rhytidectomy & Prior (SD~1.5)       & 9  & \best{0.360}   & 0.369          & --    \\
              & \method{} (ours)     & 9  & 0.173          & \best{0.369}   & 0.554 \\
 \midrule
-Orthognathic & Prior (SD~1.5)       & 10 & \best{0.568}   & 0.399          & --    \\
              & \method{} (ours)     & 10 & --             & \best{0.395}   & 0.533 \\
 \midrule
 \textbf{Overall} & Prior (SD~1.5)   & 67 & 0.551          & 0.384          & --    \\
@@ -459,7 +458,6 @@ face detection.}
 Rhinoplasty    & 0.802 & -- & 0.985 \\
 Blepharoplasty & 0.745 & -- & 0.989 \\
 Rhytidectomy   & 0.173 & -- & --    \\
-Orthognathic   & --    & -- & --    \\
 \midrule
 Mean           & 0.631 & -- & 0.987 \\
 \bottomrule
