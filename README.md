@@ -54,12 +54,12 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 
 Evaluated on the HDA Plastic Surgery Database [1] using the same 57-pair test split.
 
-| Procedure | N | Envisage ArcFace | Prior ArcFace | Envisage LPIPS | Prior LPIPS |
-|:----------|:---:|:---:|:---:|:---:|:---:|
-| Rhinoplasty | 21 | **0.802** | 0.607 | **0.380** | 0.380 |
-| Blepharoplasty | 27 | **0.745** | 0.670 | **0.370** | 0.388 |
-| Rhytidectomy | 9 | 0.173 | 0.360 | **0.369** | 0.369 |
-| **Overall** | **57** | **0.631** | 0.551 | **0.377** | 0.384 |
+| Procedure | N | ArcFace | LPIPS | SSIM |
+|:----------|:---:|:---:|:---:|:---:|
+| Rhinoplasty | 21 | 0.802 | 0.380 | 0.549 |
+| Blepharoplasty | 27 | 0.745 | 0.370 | 0.492 |
+| Rhytidectomy | 9 | 0.173 | 0.369 | 0.554 |
+| **Overall** | **57** | **0.631** | **0.377** | **0.524** |
 
 **Non-surgical region identity preservation: 0.985 to 0.989.**
 
