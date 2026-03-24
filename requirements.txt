@@ -11,7 +11,8 @@ onnxruntime-gpu>=1.18.0
 scipy>=1.12.0
 pillow>=10.0.0
 numpy>=1.26.0
-gradio>=4.40.0
+gradio>=5.0.0
+pyaudioop
 sentencepiece>=0.2.0
 protobuf>=4.25.0
 piq>=0.8.0
