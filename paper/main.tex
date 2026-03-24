@@ -205,16 +205,15 @@ pixels outside the mask are copied from the input.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/pipeline.pdf}
-\caption{The \method{} pipeline. The input photograph is processed
-through landmark extraction (MediaPipe, 478 points) and depth
-estimation (Depth Anything V2) in parallel. A procedure-specific
-mask $M$ is formed from the convex hull of the relevant landmarks.
-The depth map is modified with a Gaussian displacement to simulate the
-target surgical change. FLUX.1-dev inpainting, conditioned on the
-modified depth via a pretrained ControlNet, regenerates only the masked
-region. Pixels outside the mask are copied from the input, guaranteeing
-identity preservation in non-surgical areas.}
+\includegraphics[width=\textwidth]{figures/pipeline.png}
+\caption{The \method{} pipeline. Landmark extraction and depth
+estimation run in parallel on the input photograph. A procedure-specific
+mask is formed from the convex hull of relevant landmarks. The depth map
+is modified with Gaussian displacement kernels (bridge flattening, tip
+definition, side contrast) to encode the target surgical change.
+FLUX.1-dev inpainting, conditioned on the modified depth via a pretrained
+ControlNet, regenerates only the masked region. Pixels outside the mask
+are copied verbatim from the input.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -472,14 +471,15 @@ this change is confined to the masked region.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.65\textwidth]{figures/decomposed.pdf}
-\caption{Decomposed ArcFace similarity for rhinoplasty and
-blepharoplasty. Blue bars show full-face ArcFace; green bars show
-non-surgical region ArcFace. The gap between the two (red arrows)
-quantifies the identity change attributable to the surgical edit. Both
-procedures exceed the 0.65 identity-preservation threshold (dashed
-line) on the full face, while the non-surgical region is near-perfect
-(0.985--0.989).}
+\includegraphics[width=0.7\textwidth]{figures/fig3_decomposed_arcface.png}
+\caption{Decomposed ArcFace similarity. Blue bars show automated
+full-face ArcFace (Table~\ref{tab:main_results}); dark blue shows
+per-example tuned results; green shows non-surgical region ArcFace.
+The dashed line marks the 0.65 identity threshold. Non-surgical
+scores near 1.0 confirm that inpainting preserves identity outside
+the mask. Rhytidectomy achieves 0.982 with tuned parameters despite
+0.173 in the automated pipeline, reflecting the sensitivity of
+diffuse procedures to parameter selection.}
 \label{fig:decomposed}
 \end{figure}
 
@@ -507,15 +507,14 @@ surgical plan.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/intensity_sweep.pdf}
-\caption{Effect of depth modification intensity $\alpha$ on the
-predicted outcome for one rhinoplasty case. Top row: the input
-photograph is shown at each setting (unchanged). Bottom row: the
-modified depth map at $\alpha = 0, 10, 20, 30, 40$ (corresponding to
-0\%, 25\%, 50\%, 75\%, 100\% intensity). Higher $\alpha$ produces a
-more pronounced flattening of the nasal bridge depth, which would
-translate to a more dramatic dorsal hump reduction in the diffusion
-output.}
+\includegraphics[width=\textwidth]{figures/fig4_intensity_sweep.png}
+\caption{Effect of depth modification intensity $\alpha$ on
+rhinoplasty prediction. Top row: predicted output at each intensity.
+Bottom row: corresponding modified depth map. At $\alpha = 0$ the
+prediction matches the input; increasing $\alpha$ produces
+progressively more pronounced bridge flattening and tip definition.
+This parameter provides clinically interpretable control over the
+predicted surgical magnitude.}
 \label{fig:intensity}
 \end{figure}
 

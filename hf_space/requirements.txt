@@ -15,3 +15,4 @@ sentencepiece>=0.2.0
 protobuf>=4.25.0
 piq>=0.8.0
 lpips>=0.1.4
+pyaudioop
