@@ -210,6 +210,7 @@ def predict_blepharoplasty(input_image, intensity, num_steps):
     vr_fold = [466, 388, 387, 385, 384, 398, 286, 258, 257, 259, 260]
 
     mask = np.zeros((h, w), dtype=np.float32)
+    # Asymmetric: viewer's left eye (more hooded) gets larger mask
     for fold_indices, dilation in [(vl_fold, 12), (vr_fold, 8)]:
         fold_pts = np.array([[int(pts[i][0]), int(pts[i][1])]
                               for i in fold_indices if i < len(pts)], dtype=np.int32)
