@@ -65,6 +65,7 @@ FACE_OVAL = [
 PROCEDURE_LANDMARKS: dict[str, list[int]] = {
     "rhinoplasty": NOSE_ALL,
     "blepharoplasty": UPPER_LIDS_ONLY,
+    "orthognathic": JAW_CONTOUR + CHIN,
     "rhytidectomy": JAW_CONTOUR + FACE_OVAL,
 }
 
@@ -191,7 +192,7 @@ def get_region_points(
 
     Args:
         landmarks: Full 478-point landmarks.
-        procedure: One of 'rhinoplasty', 'blepharoplasty', 'rhytidectomy'.
+        procedure: One of 'rhinoplasty', 'blepharoplasty', 'orthognathic'.
 
     Returns:
         (N, 2) array of landmark points for the procedure region.
@@ -204,6 +205,145 @@ def get_region_points(
         )
     valid = [i for i in indices if i < len(landmarks.points)]
     return landmarks.points[valid]
+
+
+# ---------------------------------------------------------------------------
+# Anatomical measurements from landmarks
+# ---------------------------------------------------------------------------
+
+def measure_nose(landmarks: FaceLandmarks) -> dict[str, float]:
+    """Measure nose dimensions from landmarks.
+
+    Returns:
+        Dict with 'width' (px), 'height' (px), 'center_x', 'center_y',
+        'left_alar_x', 'right_alar_x'.
+    """
+    pts = landmarks.points
+    # Alar width: distance between landmarks 48 (left) and 278 (right)
+    left_alar = pts[48] if 48 < len(pts) else pts[0]
+    right_alar = pts[278] if 278 < len(pts) else pts[0]
+    width = float(np.linalg.norm(left_alar - right_alar))
+
+    # Nose height: nasion (landmark 6) to subnasale/tip (landmark 1)
+    nasion = pts[6] if 6 < len(pts) else pts[0]
+    tip = pts[1] if 1 < len(pts) else pts[0]
+    height = float(np.linalg.norm(nasion - tip))
+
+    center_x = float((left_alar[0] + right_alar[0]) / 2)
+    center_y = float((nasion[1] + tip[1]) / 2)
+
+    return {
+        "width": width,
+        "height": height,
+        "center_x": center_x,
+        "center_y": center_y,
+        "left_alar_x": float(left_alar[0]),
+        "right_alar_x": float(right_alar[0]),
+        "nasion_y": float(nasion[1]),
+        "tip_y": float(tip[1]),
+    }
+
+
+def measure_eyelid_hooding(landmarks: FaceLandmarks) -> dict[str, float]:
+    """Measure eyelid hooding for each eye independently.
+
+    Hooding is estimated as the distance from the upper lid crease to the
+    brow minus the distance from the crease to the lash line. A smaller
+    value indicates more hooding (skin covers more of the lid fold).
+
+    Returns:
+        Dict with 'left_hooding', 'right_hooding', 'left_crease_to_brow',
+        'right_crease_to_brow', 'asymmetry'.
+    """
+    pts = landmarks.points
+
+    # Left eye: upper lid center (159), brow center (105), lower lid (145)
+    left_lid = pts[159] if 159 < len(pts) else pts[0]
+    left_brow = pts[105] if 105 < len(pts) else pts[0]
+    left_lower = pts[145] if 145 < len(pts) else pts[0]
+
+    # Right eye: upper lid center (386), brow center (334), lower lid (374)
+    right_lid = pts[386] if 386 < len(pts) else pts[0]
+    right_brow = pts[334] if 334 < len(pts) else pts[0]
+    right_lower = pts[374] if 374 < len(pts) else pts[0]
+
+    left_crease_to_brow = float(abs(left_brow[1] - left_lid[1]))
+    left_crease_to_lash = float(abs(left_lid[1] - left_lower[1]))
+    right_crease_to_brow = float(abs(right_brow[1] - right_lid[1]))
+    right_crease_to_lash = float(abs(right_lid[1] - right_lower[1]))
+
+    # Hooding: less visible lid fold = more hooding
+    # Ratio of crease-to-brow / crease-to-lash: lower = more hooded
+    left_hooding = left_crease_to_brow / max(left_crease_to_lash, 1.0)
+    right_hooding = right_crease_to_brow / max(right_crease_to_lash, 1.0)
+
+    asymmetry = abs(left_hooding - right_hooding)
+
+    return {
+        "left_hooding": left_hooding,
+        "right_hooding": right_hooding,
+        "left_crease_to_brow": left_crease_to_brow,
+        "right_crease_to_brow": right_crease_to_brow,
+        "asymmetry": asymmetry,
+    }
+
+
+def measure_jaw(landmarks: FaceLandmarks) -> dict[str, float]:
+    """Measure jaw contour dimensions.
+
+    Returns:
+        Dict with 'jaw_width', 'jaw_mean_y', 'chin_y', and
+        'jaw_contour_points' (list of (x, y) tuples along the jaw).
+    """
+    pts = landmarks.points
+    jaw_pts = pts[[i for i in JAW_CONTOUR if i < len(pts)]]
+
+    if len(jaw_pts) < 3:
+        w, h = landmarks.image_size
+        return {
+            "jaw_width": w * 0.6,
+            "jaw_mean_y": h * 0.7,
+            "chin_y": h * 0.85,
+            "jaw_contour_points": [],
+        }
+
+    jaw_width = float(jaw_pts[:, 0].max() - jaw_pts[:, 0].min())
+    jaw_mean_y = float(jaw_pts[:, 1].mean())
+    chin_y = float(pts[152][1]) if 152 < len(pts) else float(jaw_pts[:, 1].max())
+
+    return {
+        "jaw_width": jaw_width,
+        "jaw_mean_y": jaw_mean_y,
+        "chin_y": chin_y,
+        "jaw_contour_points": jaw_pts.tolist(),
+    }
+
+
+def estimate_head_pose(landmarks: FaceLandmarks) -> dict[str, float]:
+    """Estimate head yaw from landmark asymmetry.
+
+    Returns:
+        Dict with 'yaw_degrees' (approximate).
+    """
+    pts = landmarks.points
+    w = landmarks.image_size[0]
+
+    # Use eye outer corners as reference
+    left_eye = pts[33] if 33 < len(pts) else np.array([w * 0.35, 0])
+    right_eye = pts[263] if 263 < len(pts) else np.array([w * 0.65, 0])
+    nose_tip = pts[1] if 1 < len(pts) else np.array([w * 0.5, 0])
+
+    # If nose tip is centered between eyes, yaw ~ 0
+    eye_center_x = (left_eye[0] + right_eye[0]) / 2
+    eye_span = abs(right_eye[0] - left_eye[0])
+    if eye_span < 1:
+        return {"yaw_degrees": 0.0}
+
+    # Ratio of nose offset from eye center to eye span
+    nose_offset = (nose_tip[0] - eye_center_x) / eye_span
+    yaw = float(np.degrees(np.arcsin(np.clip(nose_offset * 2, -1, 1))))
+
+    return {"yaw_degrees": yaw}
 
 
 def draw_landmarks(

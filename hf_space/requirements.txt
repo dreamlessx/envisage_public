@@ -1,7 +1,7 @@
 torch>=2.5.0
 torchvision>=0.20.0
 diffusers>=0.37.0
-transformers>=5.0.0
+transformers>=4.45.0
 accelerate>=1.0.0
 safetensors>=0.4.0
 mediapipe>=0.10.14
@@ -11,8 +11,7 @@ onnxruntime-gpu>=1.18.0
 scipy>=1.12.0
 pillow>=10.0.0
 numpy>=1.26.0
+gradio>=5.0.0
+huggingface_hub>=0.27.0
 sentencepiece>=0.2.0
 protobuf>=4.25.0
-piq>=0.8.0
-lpips>=0.1.4
-audioop-lts

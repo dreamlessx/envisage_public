@@ -301,7 +301,7 @@ def apply_surgical_tps_warp(
 ) -> np.ndarray:
     """Apply procedure-specific TPS warp.
 
-    For procedures without a TPS warp (rhytidectomy),
+    For procedures without a TPS warp (rhytidectomy, orthognathic),
     returns the image unchanged.
     """
     warp_fn = TPS_WARP_FNS.get(procedure)

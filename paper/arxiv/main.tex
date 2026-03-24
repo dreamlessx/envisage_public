@@ -1,34 +1,27 @@
-\documentclass[runningheads]{llncs}
-%% To switch to NeurIPS format:
-%%   1. Replace \documentclass above with:
-%%        \documentclass{article}
-%%        \usepackage[preprint]{neurips_2026}
-%%   2. Remove \institute, adjust \author
-%%   3. Remove \keywords
-%% The content, tables, and structure are NeurIPS-compatible as-is.
-
+\documentclass[twocolumn]{article}
+\usepackage[margin=1in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{xcolor}
 \usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{caption}
 
 \newcommand{\method}{Envisage}
 \newcommand{\best}[1]{\textbf{#1}}
 \newcommand{\second}[1]{\underline{#1}}
 
-\begin{document}
-
-\titlerunning{Envisage: Depth-Conditioned Inpainting for Surgery Prediction}
-
 \title{\method{}: Depth-Conditioned Diffusion Inpainting\\
 for Facial Surgery Outcome Prediction}
 
-\author{Anonymous}
-\institute{Anonymous Institution}
+\author{Anonymous Authors}
+\date{}
 
+\begin{document}
 \maketitle
+
 
 %% ========================================================================
 %% ABSTRACT
@@ -53,8 +46,6 @@ for blepharoplasty (+11\%), with non-surgical region ArcFace of
 training; the pretrained depth ControlNet suffices to produce
 anatomically coherent predictions from modified depth maps alone.
 
-\keywords{Facial surgery prediction \and Diffusion inpainting \and
-Depth conditioning \and Identity preservation \and Fairness}
 \end{abstract}
 
 %% ========================================================================
@@ -246,7 +237,7 @@ No post-processing is applied. The simplicity is deliberate: each
 component addresses a distinct aspect of surgical simulation, and
 pixels outside the mask are copied from the input.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/pipeline.pdf}
 \caption{The \method{} pipeline. The input photograph is processed
@@ -259,7 +250,7 @@ modified depth via a pretrained ControlNet, regenerates only the masked
 region. Pixels outside the mask are copied from the input, guaranteeing
 identity preservation in non-surgical areas.}
 \label{fig:pipeline}
-\end{figure}
+\end{figure*}
 
 \subsection{Mask Generation}
 
@@ -475,7 +466,7 @@ photorealistic even when the depth modification does not capture the correct
 anatomical change. Figure~\ref{fig:qualitative} shows representative
 examples for each procedure.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/fig2_qualitative.png}
 \caption{Qualitative results for three procedures. Each row shows one
@@ -491,7 +482,7 @@ pixel-identical to the input. Elevated TPS and depth parameters are
 used for visual clarity; Table~\ref{tab:main_results} reports
 automated pipeline results.}
 \label{fig:qualitative}
-\end{figure}
+\end{figure*}
 
 \subsection{Decomposed Identity Evaluation}
 
@@ -536,7 +527,7 @@ this change is confined to the masked region.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.65\textwidth]{figures/decomposed.pdf}
+\includegraphics[width=\columnwidth]{figures/decomposed.pdf}
 \caption{Decomposed ArcFace similarity for rhinoplasty and
 blepharoplasty. Blue bars show full-face ArcFace; green bars show
 non-surgical region ArcFace. The gap between the two (red arrows)
@@ -569,7 +560,7 @@ reduction. This parameter provides a clinically interpretable control:
 the surgeon can adjust the predicted change to match the intended
 surgical plan.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/intensity_sweep.pdf}
 \caption{Effect of depth modification intensity $\alpha$ on the
@@ -581,7 +572,7 @@ more pronounced flattening of the nasal bridge depth, which would
 translate to a more dramatic dorsal hump reduction in the diffusion
 output.}
 \label{fig:intensity}
-\end{figure}
+\end{figure*}
 
 \subsection{Monk Skin Tone Stratification}
 
@@ -721,7 +712,7 @@ guarantees.
 %% ========================================================================
 %% REFERENCES
 %% ========================================================================
-\bibliographystyle{splncs04}
+\bibliographystyle{plain}
 
 \begin{thebibliography}{99}
 
