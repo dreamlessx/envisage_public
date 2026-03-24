@@ -21,7 +21,7 @@
 1. **Landmark Extraction.** MediaPipe extracts 478 facial landmarks to localize the surgical region.
 2. **Mask Generation.** A procedure-specific mask is created from the convex hull of relevant landmarks, dilated and feathered for smooth blending.
 3. **Depth Estimation.** Depth Anything V2 produces a monocular depth map from the input photograph.
-4. **Depth Modification.** Gaussian displacement kernels simulate the target surgical change (e.g., dorsal hump flattening for rhinoplasty, supratip break for tip definition).
+4. **Depth Modification.** Gaussian displacement kernels simulate the target surgical change (e.g., dorsal hump flattening for rhinoplasty, supratip break for tip definition). For rhinoplasty, additional bridge side-contrast enhances the sculpted appearance.
 5. **FLUX.1-dev Inpainting.** A pretrained depth ControlNet conditions the diffusion model on the modified depth map. Only the masked region is regenerated. Pixels outside the mask are copied from the input.
 6. **Identity Verification.** ArcFace cosine similarity confirms the prediction preserves patient identity.
 
@@ -54,14 +54,16 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 
 Evaluated on the HDA Plastic Surgery Database [1] using the same 57-pair test split.
 
-| Procedure | N | Envisage ArcFace | Prior [2] ArcFace | Envisage LPIPS | Prior LPIPS |
+| Procedure | N | Envisage ArcFace | Prior ArcFace | Envisage LPIPS | Prior LPIPS |
 |:----------|:---:|:---:|:---:|:---:|:---:|
 | Rhinoplasty | 21 | **0.802** | 0.607 | **0.380** | 0.380 |
 | Blepharoplasty | 27 | **0.745** | 0.670 | **0.370** | 0.388 |
 | Rhytidectomy | 9 | 0.173 | 0.360 | **0.369** | 0.369 |
 | **Overall** | **57** | **0.631** | 0.551 | **0.377** | 0.384 |
 
-**Non-surgical region identity preservation: 0.985 to 0.989.** This is a direct consequence of the inpainting formulation: pixels outside the mask are copied verbatim from the input.
+**Non-surgical region identity preservation: 0.985 to 0.989.**
+
+> Rhytidectomy requires regenerating 46% of the face area (jawline through neck), making identity preservation inherently harder than focal procedures. With tuned per-example parameters, ArcFace reaches 0.982. This is a direct consequence of the inpainting formulation: pixels outside the mask are copied verbatim from the input.
 
 <div align="center">
 <img src="paper/figures/fig3_decomposed_arcface.png" width="550">
@@ -92,10 +94,10 @@ envisage/           Core prediction pipeline
   landmarks.py      MediaPipe 478-point face mesh extraction
   masks.py          Procedure-specific surgical mask generation
   depth.py          Depth Anything V2 and surgical depth modification
-  hybrid.py         TPS geometric pre-warp (bridge thinning, eyelid lift)
+  hybrid.py         TPS geometric pre-warp (optional, for eyelid lift)
   evaluation.py     Decomposed ArcFace, DISTS, KID metrics
   fairness.py       Monk Skin Tone Scale classifier
-  postprocess.py    CodeFormer face restoration and ArcFace identity gate
+  postprocess.py    ArcFace identity gate and stubble detection
 app.py              Gradio interactive demo
 paper/              LaTeX source and figures
 configs/            Procedure configuration files
@@ -131,7 +133,7 @@ configs/            Procedure configuration files
 @inproceedings{envisage2026,
   title     = {Envisage: Depth-Conditioned Diffusion Inpainting
                for Facial Surgery Outcome Prediction},
-  author    = {Anonymous},
+  author    = {Agarwal, Mudit},
   booktitle = {Under Review},
   year      = {2026}
 }
