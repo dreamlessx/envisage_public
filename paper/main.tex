@@ -25,8 +25,8 @@
 \title{\method{}: Depth-Conditioned Diffusion Inpainting\\
 for Facial Surgery Outcome Prediction}
 
-\author{Anonymous}
-\institute{Anonymous Institution}
+\author{Agarwal, Mudit}
+\institute{Vanderbilt University}
 
 \maketitle
 
@@ -591,13 +591,13 @@ substantially. The automated pipeline applies a generic mask; the
 qualitative figures use procedure-specific mask zoning for visual
 clarity (see caption, Figure~\ref{fig:qualitative}).
 
-We evaluated CodeFormer~\cite{wang2023codeformer} face restoration as
-a post-processing step but found that it degrades automated identity
-metrics (ArcFace 0.631 to 0.433), consistent with the observation that
-CodeFormer replaces facial details with its learned codebook. We report
-metrics without post-processing in Table~\ref{tab:main_results};
-qualitative figures use TPS pre-warping and elevated depth modification
-parameters for visual clarity.
+We evaluated CodeFormer face restoration as a post-processing step
+but found that it degrades automated identity metrics (ArcFace 0.631
+to 0.433), consistent with the observation that learned codebook
+replacement alters facial details that ArcFace relies on. The final
+pipeline uses no post-processing. We report automated metrics in
+Table~\ref{tab:main_results}; qualitative figures use elevated depth
+modification parameters for visual clarity.
 
 All results use pretrained weights with no task-specific training. This
 is both a strength and a limitation. The system generalizes immediately
