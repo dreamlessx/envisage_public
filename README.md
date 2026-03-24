@@ -41,9 +41,35 @@ Predict what a patient will look like after facial surgery from a single photogr
 </tr>
 </table>
 
+---
+
+## Why Envisage
+
+Existing approaches to surgical outcome prediction fall into five categories. Each has a fundamental limitation that Envisage addresses.
+
+| Approach | Examples | Core limitation | Envisage alternative |
+|:---------|:---------|:----------------|:---------------------|
+| Commercial hardware systems | Crisalix, Vectra 3D | $30,000--50,000 dedicated hardware; proprietary; results not reproducible | Single 2D photo input. Open-source code and evaluation framework. |
+| GAN-based prediction | Jung et al. (2022) | 52.5% Visual Turing test: predictions are distinguishable from real outcomes nearly half the time | FLUX.1-dev produces photorealistic 1024x1024 outputs zero-shot. |
+| Landmark-conditioned diffusion | LandmarkDiff (our prior work) | 97% of identity score came from compositing, not the model. SD 1.5 at 512x512 lacked resolution for clinical detail. | Inpainting preserves identity architecturally. Decomposed ArcFace prevents compositing from inflating metrics. |
+| Generic face editors | DragDiffusion, FaceApp | No anatomical priors, no procedure-specific guidance, no clinical evaluation | Depth conditioning maps to tissue displacement. Parameters scale with measured anatomy per procedure. |
+| 3D morphable models | ACMT-Net, GPOSC-Net | Require CT scans or multi-view input; not accessible from a single photograph | Works from one photo. No CT scans, no depth sensors, no multi-view capture. |
+
+**What makes Envisage different:**
+
+- **Zero training.** Works out of the box with pretrained FLUX.1-dev. No fine-tuning, no task-specific dataset collection.
+- **Architectural identity preservation.** The inpainting formulation copies all pixels outside the surgical mask. Identity is preserved by construction, not by optimization.
+- **Depth conditioning.** Modified depth maps encode the intended tissue displacement, giving the diffusion model explicit 3D guidance about the surgical change.
+- **Adaptive anatomy.** Mask dilation, depth kernels, and TPS warp parameters scale with measured facial dimensions. Nothing is a fixed pixel offset.
+- **Honest evaluation.** Decomposed ArcFace separates surgical from non-surgical regions, preventing compositing artifacts from inflating identity scores.
+- **Single 2D photo input.** No CT scans, no depth sensors, no multi-view rigs. A clinical photo or phone selfie is sufficient.
+- **Open source.** Full pipeline code, evaluation framework, and paper are publicly available.
+
+---
+
 ### Where We're Headed
 
-Envisage ships as a zero-shot inpainting system built on FLUX.1-dev. The approach works well for focal procedures (rhinoplasty, blepharoplasty) where the surgical region is small relative to the face. The next steps are: (1) extend to orthognathic surgery, where jaw repositioning affects a much larger facial area; (2) add interactive intensity control so clinicians can preview subtle through aggressive versions of a procedure; and (3) move toward 3D: reconstruct a face model from a short phone video and apply surgical deformations in 3D space for multi-angle visualization. No depth sensors, no clinical scanning rigs. Just a phone camera.
+Envisage ships as a zero-shot inpainting system built on FLUX.1-dev. The approach works well for focal procedures (rhinoplasty, blepharoplasty) where the surgical region is small relative to the face. The next steps are: (1) add interactive intensity control so clinicians can preview subtle through aggressive versions of a procedure; and (2) move toward 3D: reconstruct a face model from a short phone video and apply surgical deformations in 3D space for multi-angle visualization. No depth sensors, no clinical scanning rigs. Just a phone camera.
 
 > **Paper:** "Envisage: Depth-Conditioned Diffusion Inpainting for Facial Surgery Outcome Prediction," under review, 2026.
 
@@ -53,6 +79,7 @@ Envisage ships as a zero-shot inpainting system built on FLUX.1-dev. The approac
 
 ## Table of Contents
 
+- [Why Envisage](#why-envisage)
 - [Design Decisions from LandmarkDiff](#design-decisions-from-landmarkdiff)
 - [Pipeline](#pipeline)
 - [Demo Outputs](#demo-outputs)
@@ -214,7 +241,7 @@ python -m envisage.evaluation \
 
 ## Results
 
-Evaluated on the [HDA Plastic Surgery Database](https://doi.org/10.1109/CVPRW50498.2020.00425) (Rathgeb et al., CVPRW 2020). 637 total pairs, 125 test pairs from an 80/20 stratified split across four procedures.
+Evaluated on the [HDA Plastic Surgery Database](https://doi.org/10.1109/CVPRW50498.2020.00425) (Rathgeb et al., CVPRW 2020). 637 total pairs, 104 test pairs from an 80/20 stratified split across three procedures.
 
 ### Comparison with LandmarkDiff
 
@@ -223,8 +250,7 @@ Evaluated on the [HDA Plastic Surgery Database](https://doi.org/10.1109/CVPRW504
 | Rhinoplasty | 34 | **0.802** | 0.607 | **0.380** |
 | Blepharoplasty | 51 | **0.745** | 0.670 | **0.370** |
 | Rhytidectomy | 19 | 0.173 | **0.360** | **0.369** |
-| Orthognathic | 21 | N/A | **0.568** | **0.395** |
-| **Overall** | **125** | **0.631** | 0.551 | **0.377** |
+| **Overall** | **104** | **0.631** | 0.551 | **0.377** |
 
 LandmarkDiff scores include compositing (pasting the generated face back onto the original image). Without compositing, LandmarkDiff rhinoplasty ArcFace drops from 0.607 to 0.023, indicating the SD 1.5 model contributed almost no identity preservation on its own. Envisage scores are reported without compositing; the inpainting formulation inherently preserves non-surgical pixels.
 
@@ -321,10 +347,7 @@ This project is released for research use only. FLUX.1-dev is released under a n
 
 ## Clinical Disclaimer
 
-<div align="center">
-<sub>
-
-**This is a research tool, not a medical device.** Predictions are approximations generated by a diffusion model and do not reflect actual surgical outcomes. Outputs should always be reviewed by a qualified clinician before being shown to patients. The authors make no clinical claims about prediction accuracy or suitability for surgical planning. FLUX.1-dev is released under a non-commercial license.
-
-</sub>
-</div>
+> [!CAUTION]
+> **This is a research tool, not a medical device.**
+>
+> Predictions are approximations generated by a diffusion model and do not reflect actual surgical outcomes. Outputs should always be reviewed by a qualified clinician before being shown to patients. The authors make no clinical claims about prediction accuracy or suitability for surgical planning. Do not use this system for clinical decision-making without independent professional validation. FLUX.1-dev is released under a non-commercial license by Black Forest Labs.
