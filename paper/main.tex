@@ -49,7 +49,7 @@ region, and full face. On the HDA Plastic Surgery benchmark (637 pairs,
 (compared to 0.670 for LandmarkDiff, a full-face diffusion baseline that
 we show relied on compositing for 97\% of its identity score), 0.811
 for rhytidectomy (compared to 0.360), and 0.725 for rhinoplasty (+19\%),
-with non-surgical region ArcFace of 0.922--0.978. These results are obtained with zero task-specific
+with non-surgical region ArcFace of 0.922 to 0.978. These results are obtained with zero task-specific
 training; the pretrained depth ControlNet suffices to produce
 anatomically coherent predictions from modified depth maps alone.
 
@@ -67,12 +67,12 @@ Facial plastic surgery accounts for over 15 million procedures per
 year globally, with rhinoplasty and blepharoplasty among the most
 requested~\cite{asps2023stats}. Patient satisfaction is strongly
 associated with pre-operative expectation management; studies report
-revision rates of 5--15\% for rhinoplasty, driven in part by
+revision rates of 5 to 15\% for rhinoplasty, driven in part by
 discrepancies between expected and actual
 outcomes~\cite{honigman2004review,sarwer2008body}. Current prediction
 tools range from surgeon-drawn sketches to proprietary 3D simulation
 systems (Crisalix, Vectra 3D) that require dedicated hardware costing
-\$30,000--50,000. No widely available system produces photorealistic
+\$30,000 to 50,000. No widely available system produces photorealistic
 predictions from a single 2D photograph while guaranteeing that the
 patient's identity is preserved in non-surgical regions.
 
@@ -116,7 +116,7 @@ depth-conditioned diffusion to regenerate only the masked region,
 requiring no task-specific training.
 \item A decomposed identity evaluation framework that measures ArcFace
 similarity separately on the surgical region, non-surgical region, and
-full face, revealing that our approach achieves 0.922--0.978 identity
+full face, revealing that our approach achieves 0.922 to 0.978 identity
 preservation outside the mask.
 \item The first surgical prediction evaluation stratified by the Monk
 Skin Tone Scale~\cite{monk2023monk}, establishing a fairness baseline
@@ -277,9 +277,9 @@ prevent hard boundary artifacts.
 Before inpainting, a thin-plate spline (TPS) warp is applied to
 simulate geometric changes that depth modification alone cannot capture.
 For rhinoplasty, bridge sidewall landmarks (indices 193, 245, 188,
-174, 217 and their right-side mirrors) are displaced inward by 3--4
+174, 217 and their right-side mirrors) are displaced inward by 3 to 4
 pixels to thin the bridge, and tip lobule landmarks are displaced
-inward by 2--3 pixels to refine the tip. Alar landmarks (48, 278)
+inward by 2 to 3 pixels to refine the tip. Alar landmarks (48, 278)
 receive zero displacement, preserving nostril width. No vertical
 displacement is applied; the nose retains its original length and
 projection.
@@ -291,9 +291,9 @@ Upper eyelid skin fold landmarks are lifted upward; the iris, lash
 line, and lower lid landmarks are anchored in place, and the original
 eye pixels are pasted back after warping to preserve fine detail.
 
-For rhytidectomy, jowl landmarks are lifted upward by 3--4 pixels
+For rhytidectomy, jowl landmarks are lifted upward by 3 to 4 pixels
 and synthetic neck contour points are pulled inward and upward by
-6--8 pixels. Upper face landmarks receive zero displacement.
+6 to 8 pixels. Upper face landmarks receive zero displacement.
 
 The TPS interpolation uses a radial basis function
 (scipy.interpolate.RBFInterpolator with thin-plate spline kernel),
@@ -441,16 +441,16 @@ include compositing; without compositing, rhinoplasty ArcFace drops from
 \textbf{ArcFace} $\uparrow$ & \textbf{LPIPS} $\downarrow$ &
 \textbf{SSIM} $\uparrow$ \\
 \midrule
-Rhinoplasty  & LandmarkDiff         & 16 & 0.607          & 0.380          & --    \\
+Rhinoplasty  & LandmarkDiff         & 16 & 0.607          & 0.380          &       \\
              & \method{} (ours)     & 16 & \best{0.725}   & \best{0.348}   & 0.520 \\
 \midrule
-Blepharo.    & LandmarkDiff         & 36 & 0.670          & 0.388          & --    \\
+Blepharo.    & LandmarkDiff         & 36 & 0.670          & 0.388          &       \\
              & \method{} (ours)     & 36 & \best{0.958}   & 0.403          & 0.478 \\
 \midrule
-Rhytidectomy & LandmarkDiff         & 13 & 0.360          & 0.369          & --    \\
+Rhytidectomy & LandmarkDiff         & 13 & 0.360          & 0.369          &       \\
              & \method{} (ours)     & 13 & \best{0.811}   & 0.471          & 0.519 \\
 \midrule
-\textbf{Overall} & LandmarkDiff     & 65 & 0.551         & 0.384          & --    \\
+\textbf{Overall} & LandmarkDiff     & 65 & 0.551         & 0.384          &       \\
                  & \method{} (ours) & 65 & \best{0.871}  & 0.397          & 0.499 \\
 \bottomrule
 \end{tabular}
@@ -506,7 +506,7 @@ the face embedding.
 \centering
 \caption{Decomposed ArcFace similarity by region. Non-surgical scores near
 1.0 confirm that inpainting preserves identity outside the mask. Surgical-region
-ArcFace is reported as ``--'' where the cropped region was too small for
+ArcFace is reported as N/A where the cropped region was too small for
 face detection.}
 \label{tab:decomposed}
 \begin{tabular}{@{}lccc@{}}
@@ -516,11 +516,11 @@ face detection.}
 \textbf{Surgical} &
 \textbf{Non-Surgical} \\
 \midrule
-Rhinoplasty    & 0.725 & -- & 0.922 \\
-Blepharoplasty & 0.958 & -- & 0.978 \\
+Rhinoplasty    & 0.725 &      & 0.922 \\
+Blepharoplasty & 0.958 &      & 0.978 \\
 Rhytidectomy   & 0.811 & 0.769 & 0.936 \\
 \midrule
-Mean           & 0.871 & -- & 0.945 \\
+Mean           & 0.871 &      & 0.945 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -540,7 +540,7 @@ non-surgical region ArcFace. The gap between the two (red arrows)
 quantifies the identity change attributable to the surgical edit. Both
 procedures exceed the 0.65 identity-preservation threshold (dashed
 line) on the full face, while the non-surgical region is near-perfect
-(0.922--0.978).}
+(0.922 to 0.978).}
 \label{fig:decomposed}
 \end{figure}
 
@@ -584,15 +584,15 @@ output.}
 
 Table~\ref{tab:fairness} reports metrics stratified by the Monk Skin Tone
 (MST) Scale~\cite{monk2023monk}. The HDA database has limited diversity:
-most subjects fall in MST~5--6, with one subject at MST~8 and none in
-MST~1--4 or 9--10. Within the represented tones, ArcFace ranges from
+most subjects fall in MST~5 to 6, with one subject at MST~8 and none in
+MST~1 to 4 or 9 to 10. Within the represented tones, ArcFace ranges from
 0.577 (MST~6, $N{=}3$) to 0.669 (MST~5, $N{=}5$). The MST~8 subject
 achieved 0.604 ArcFace, within the range of lighter-skinned subjects, but
 a sample size of one limits this conclusion.
 
 \begin{table}[t]
 \centering
-\caption{Metrics stratified by Monk Skin Tone Scale. Tones 1--2, 4, 9--10
+\caption{Metrics stratified by Monk Skin Tone Scale. Tones 1 to 2, 4, 9 to 10
 are absent from the HDA test set.}
 \label{tab:fairness}
 \begin{tabular}{@{}clcccc@{}}
@@ -710,7 +710,7 @@ We found that depth-conditioned diffusion inpainting with adaptive
 anatomical parameters preserves patient identity substantially better
 than full-face generation across all evaluated procedures (overall
 ArcFace 0.871 vs.\ 0.551; blepharoplasty 0.958, rhytidectomy 0.811,
-rhinoplasty 0.725), with non-surgical region ArcFace of 0.922--0.978. The most productive next
+rhinoplasty 0.725), with non-surgical region ArcFace of 0.922 to 0.978. The most productive next
 experiment is training on real surgical data to learn procedure-specific
 depth modifications, which would address the primary bottleneck without
 sacrificing the identity preservation that the inpainting formulation
@@ -731,12 +731,12 @@ ASPS National Clearinghouse (2023)
 \bibitem{honigman2004review}
 Honigman, R.J., Phillips, K.A., Castle, D.J.:
 A review of psychosocial outcomes for patients seeking cosmetic surgery.
-Plast.\ Reconstr.\ Surg.\ \textbf{113}(4), 1229--1237 (2004)
+Plast.\ Reconstr.\ Surg.\ \textbf{113}(4), 1229\textendash 1237 (2004)
 
 \bibitem{sarwer2008body}
 Sarwer, D.B., Crerand, C.E.:
 Body image and cosmetic medical treatments.
-Body Image \textbf{5}(1), 50--58 (2008)
+Body Image \textbf{5}(1), 50\textendash 58 (2008)
 
 \bibitem{rathgeb2020plastic}
 Rathgeb, C., Drozdowski, P., Busch, C.:
@@ -746,12 +746,12 @@ In: CVPR Workshops (2020)
 \bibitem{deng2019arcface}
 Deng, J., Guo, J., Xue, N., Zafeiriou, S.:
 ArcFace: Additive angular margin loss for deep face recognition.
-In: CVPR, pp.~4690--4699 (2019)
+In: CVPR, pp.~4690\textendash 4699 (2019)
 
 \bibitem{zhang2023controlnet}
 Zhang, L., Rao, A., Agrawala, M.:
 Adding conditional control to text-to-image diffusion models.
-In: ICCV, pp.~3836--3847 (2023)
+In: ICCV, pp.~3836\textendash 3847 (2023)
 
 \bibitem{yang2024depth}
 Yang, L., et~al.:
@@ -777,12 +777,12 @@ arXiv:2308.06721 (2023)
 \bibitem{rombach2022latent}
 Rombach, R., Blattmann, A., Lorenz, D., Esser, P., Ommer, B.:
 High-resolution image synthesis with latent diffusion models.
-In: CVPR, pp.~10684--10695 (2022)
+In: CVPR, pp.~10684\textendash 10695 (2022)
 
 \bibitem{bookstein1989tps}
 Bookstein, F.L.:
 Principal warps: thin-plate splines and the decomposition of deformations.
-IEEE TPAMI \textbf{11}(6), 567--585 (1989)
+IEEE TPAMI \textbf{11}(6), 567\textendash 585 (1989)
 
 \bibitem{shi2024dragdiffusion}
 Shi, Y., et~al.:
@@ -793,7 +793,7 @@ In: CVPR (2024)
 \bibitem{zhang2018lpips}
 Zhang, R., Isola, P., Efros, A.A., Shechtman, E., Wang, O.:
 The unreasonable effectiveness of deep features as a perceptual metric.
-In: CVPR, pp.~586--595 (2018)
+In: CVPR, pp.~586\textendash 595 (2018)
 
 \bibitem{ma2023gposc}
 Ma, L., et~al.:
@@ -810,12 +810,12 @@ In: AAAI (2023)
 \bibitem{lee2022prediction}
 Lee, J., et~al.:
 Prediction of orthognathic surgery outcomes using deep learning.
-J.\ Craniofac.\ Surg.\ \textbf{33}(5), 1442--1446 (2022)
+J.\ Craniofac.\ Surg.\ \textbf{33}(5), 1442\textendash 1446 (2022)
 
 \bibitem{singh2022rhinoplasty}
 Singh, M., et~al.:
 Computerized prediction of rhinoplasty outcomes using morphometric analysis.
-Aesthetic Plast.\ Surg.\ \textbf{46}, 2785--2793 (2022)
+Aesthetic Plast.\ Surg.\ \textbf{46}, 2785\textendash 2793 (2022)
 
 \bibitem{choi2025mdpi}
 Choi, K., et~al.:
