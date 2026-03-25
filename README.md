@@ -269,7 +269,7 @@ LandmarkDiff (SD 1.5 + ControlNet wireframe, 50K TPS pretrain + 25K fine-tune) r
 ### Decomposed Identity
 
 <div align="center">
-<img src="paper/figures/fig3_decomposed_arcface.png" width="550">
+<img src="paper/figures/figM3_decomposed_arcface.png" width="550">
 </div>
 
 | Procedure      | Full Face | Surgical Region | Non-surgical Region |
