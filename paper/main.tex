@@ -557,27 +557,25 @@ understanding of facial structure, learned from diverse data, cannot be
 improved upon with a small set of synthetic geometric warps. Training on
 real surgical data is the most likely path to further improvement.
 
-Figure~\ref{fig:intensity} shows how the depth modification intensity
-$\alpha$ controls the magnitude of the predicted change. At $\alpha = 0$
-(no modification), the depth map is unchanged and the prediction closely
-resembles the input. As $\alpha$ increases, the nasal bridge depth
-decreases progressively, producing a more pronounced dorsal hump
-reduction. This parameter provides a clinically interpretable control:
-the surgeon can adjust the predicted change to match the intended
-surgical plan.
+Figure~\ref{fig:mask_size} visualizes the surgical mask for each
+procedure overlaid on the same input face. Blepharoplasty masks cover
+approximately 3.5\% of the face area (upper eyelid folds only).
+Rhinoplasty covers approximately 5.5\% (nasal dorsum, tip, and wings).
+Rhytidectomy covers the jawline and neck region (approximately 35\%).
+This difference in mask coverage directly explains the per-procedure
+ArcFace variation in Table~\ref{tab:decomposed}: smaller masks preserve
+more of the original face embedding, yielding higher identity scores.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/figM4_intensity_sweep.pdf}
-\caption{Effect of depth modification intensity $\alpha$ on the
-predicted outcome for one rhinoplasty case. Top row: the input
-photograph is shown at each setting (unchanged). Bottom row: the
-modified depth map at $\alpha = 0, 10, 20, 30, 40$ (corresponding to
-0\%, 25\%, 50\%, 75\%, 100\% intensity). Higher $\alpha$ produces a
-more pronounced flattening of the nasal bridge depth, which would
-translate to a more dramatic dorsal hump reduction in the diffusion
-output.}
-\label{fig:intensity}
+\includegraphics[width=\textwidth]{figures/figM4_mask_comparison.pdf}
+\caption{Mask coverage comparison across procedures. Red overlay
+indicates the inpainting mask (pixels the diffusion model may modify).
+Everything outside the mask is copied from the input. Blepharoplasty
+(3.5\%) and rhinoplasty (5.5\%) are focal procedures; rhytidectomy
+(35\%) covers the jawline and neck. Smaller masks yield higher ArcFace
+because more of the original face is preserved.}
+\label{fig:mask_size}
 \end{figure}
 
 \subsection{Monk Skin Tone Stratification}
