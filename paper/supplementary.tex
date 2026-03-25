@@ -494,4 +494,62 @@ The v3 evaluation uses a subset of 65 test pairs (16 rhinoplasty, 36
 blepharoplasty, 13 rhytidectomy) after excluding samples with missing
 landmarks, extreme poses, or corrupt depth maps.
 
+\section{Failure Cases}
+
+Figure~\ref{fig:failures} shows the worst-performing test case for each
+procedure, selected by lowest SSIM to the ground-truth post-operative image.
+Rhytidectomy failures show identity drift when the jawline mask encroaches
+on identity-critical facial features. Rhinoplasty failures show shape
+mismatches where the depth modification does not capture the intended nasal
+change. Blepharoplasty failures show texture artifacts in the regenerated
+eyelid region. These cases represent the tail of the distribution; median
+performance is substantially higher.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/figS4_failures.png}
+\caption{Failure cases: worst-performing test pair per procedure by SSIM.
+Top: rhytidectomy identity collapse. Middle: rhinoplasty shape mismatch.
+Bottom: blepharoplasty texture artifact. Red metrics indicate SSIM and
+LPIPS for each prediction.}
+\label{fig:failures}
+\end{figure*}
+
+\section{Monk Skin Tone Visualization}
+
+Figure~\ref{fig:skin_tone} shows blepharoplasty predictions across the
+five Monk Skin Tone (MST) categories present in the HDA test set
+(MST~3, 5, 6, 7, 8). Predictions appear qualitatively consistent across
+skin tones, though the limited sample size in tails (N=1 to 4 for MST~3,
+7, 8) prevents strong conclusions about equitable performance.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/figS5_skin_tone.png}
+\caption{Blepharoplasty across Monk Skin Tone categories. Top row: input.
+Bottom row: prediction. MST ranges from 3 (Light-Medium) to 8 (Dark).
+Predictions maintain consistent quality across represented tones.}
+\label{fig:skin_tone}
+\end{figure*}
+
+\section{Mask Size Comparison}
+
+Figure~\ref{fig:mask_size} visualizes the surgical mask for each procedure
+overlaid on the same input face. Blepharoplasty masks cover approximately
+3.5\% of the face (upper eyelid folds only). Rhinoplasty covers
+approximately 5.5\% (nasal dorsum, tip, and wings). Rhytidectomy covers
+the jawline and neck region (approximately 35\%). This difference in mask
+coverage directly explains the per-procedure ArcFace variation: smaller
+masks preserve more of the original face, yielding higher identity scores.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/figS6_mask_comparison.png}
+\caption{Mask coverage comparison across procedures. Red overlay indicates
+the inpainting mask (pixels the diffusion model may modify). Everything
+outside the mask is copied from the input. Smaller masks yield higher
+ArcFace because more of the original face is preserved.}
+\label{fig:mask_size}
+\end{figure*}
+
 \end{document}
