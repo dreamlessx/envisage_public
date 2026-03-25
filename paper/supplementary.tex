@@ -61,13 +61,14 @@ the neck.
 
 \begin{figure*}[t]
 \centering
-%% TODO: Generate this figure and place at figures/fig_conditioning.png
 \includegraphics[width=\textwidth]{figures/fig_conditioning.png}
-\caption{Conditioning signal visualization for each procedure. Columns
-from left to right: input photograph, binary inpainting mask, original
-depth map (Depth Anything V2 Small), and modified depth map with
-procedure-specific Gaussian displacement applied. Top row: rhinoplasty.
-Middle row: blepharoplasty. Bottom row: rhytidectomy.}
+\caption{Pipeline visualization for each procedure. Columns from left
+to right: pre-operative input, surgical mask overlay (red), \method{}
+prediction, and post-operative ground truth. Top: rhinoplasty (nose
+dorsum and tip). Middle: blepharoplasty (bilateral upper eyelids).
+Bottom: rhytidectomy (jawline and neck). The mask defines which pixels
+the diffusion model may modify; everything outside is copied from the
+input.}
 \label{fig:conditioning}
 \end{figure*}
 
@@ -118,13 +119,12 @@ when nearly half the face is regenerated. The overall mean ArcFace
 
 \begin{figure*}[t]
 \centering
-%% TODO: Generate this figure and place at figures/fig_metrics_dist.png
 \includegraphics[width=0.9\textwidth,height=0.4\textheight,keepaspectratio]{figures/fig_metrics_dist.png}
-\caption{Distribution of ArcFace, LPIPS, and SSIM across all 65 test
-samples, stratified by procedure. Dashed lines indicate the overall
-mean. Blepharoplasty (green) clusters at high ArcFace due to its small
-mask. Rhytidectomy (red) shows the widest variance due to large mask
-coverage.}
+\caption{Distribution of LPIPS, SSIM, and DISTS across all 104 test
+pairs, stratified by procedure. Box plots show median, interquartile
+range, and outliers. Blepharoplasty and rhinoplasty show tight
+distributions; rhytidectomy has wider variance reflecting the larger
+surgical region.}
 \label{fig:metrics_dist}
 \end{figure*}
 
