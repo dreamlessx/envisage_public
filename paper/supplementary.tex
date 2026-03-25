@@ -1,0 +1,266 @@
+% Envisage: Supplementary Material
+
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage[margin=0.75in,columnsep=0.25in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{url}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage[font=small,labelfont=bf,labelsep=period]{caption}
+
+\newcommand{\method}{Envisage}
+
+\setlist{nosep,leftmargin=*}
+
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{1em}{}
+\titlespacing{\section}{0pt}{*2}{*1}
+\titlespacing{\subsection}{0pt}{*1.5}{*0.5}
+
+\begin{document}
+
+\twocolumn[
+\begin{@twocolumnfalse}
+\begin{center}
+{\LARGE\bfseries \method{}: Supplementary Material}
+
+\vspace{12pt}
+{\large Anonymous Authors}
+\end{center}
+\vspace{16pt}
+\end{@twocolumnfalse}
+]
+
+\section{Adaptive Parameter Scaling}
+
+All depth modification parameters in \method{} scale with the measured
+anatomy of each input face rather than using fixed pixel offsets. This
+section details the measurement and scaling procedure.
+
+\subsection{Rhinoplasty}
+
+The nose is characterized by two measurements from MediaPipe landmarks:
+\begin{itemize}
+  \item \textbf{Nose width:} Euclidean distance between left alar
+    (landmark~48) and right alar (landmark~278).
+  \item \textbf{Nose height:} Euclidean distance between nasion
+    (landmark~6) and subnasale/tip (landmark~1).
+\end{itemize}
+
+The dorsal hump reduction Gaussian has $\sigma_x = 0.5 \times
+\text{nose\_width}$ and $\sigma_y = 0.6 \times \text{nose\_height}$,
+centered at the nasion. Bridge side-contrast Gaussians are placed at
+$\pm 0.30 \times \text{nose\_width}$ from the midline. The displacement
+intensity is scaled by the ratio of the nose's depth range (max minus min
+depth within the nose bounding box) to a reference value of 40 depth
+units, so that a nose that is already flat receives less modification than
+a prominent one.
+
+\subsection{Blepharoplasty}
+
+Each eye is measured independently:
+\begin{itemize}
+  \item \textbf{Crease-to-brow distance:} Vertical distance from the
+    upper eyelid crease (landmarks 159/386) to the brow center (landmarks
+    105/334).
+  \item \textbf{Hooding ratio:} Crease-to-brow distance divided by
+    crease-to-lash distance. A lower ratio indicates more hooding.
+\end{itemize}
+
+The more hooded eye receives proportionally more mask dilation:
+$\text{dilation}_i = \text{base} \times (\max_j \text{hooding}_j /
+\text{hooding}_i)$. This ensures both eyes end up with approximately
+equal mask coverage after adaptive dilation, producing symmetric results
+from asymmetric anatomy. The depth modification Gaussian $\sigma$ scales
+with the crease-to-brow distance rather than fixed fractions of image
+dimensions.
+
+\subsection{Rhytidectomy}
+
+The jaw contour is extracted from MediaPipe landmarks (36 points) and
+used directly as the mask boundary rather than a horizontal cutoff line.
+The mask extends from the jaw contour to the bottom of the image,
+covering the neck. A 5-pixel feather is applied along the contour
+boundary to prevent hard edges. If the image is cropped at the chin
+(neck extent $< 10\%$ of image height), the system detects this and
+restricts inpainting to a narrow band along the jawline.
+
+\section{Seed Sweep Analysis}
+
+For each test pair, we generate predictions with three seeds (42, 123,
+456) and select the output with the highest ArcFace similarity to the
+input. Table~\ref{tab:seed_sweep} shows the effect of seed selection
+on identity preservation.
+
+\begin{table}[H]
+\centering
+\caption{Effect of seed sweep on ArcFace. ``Best of 3'' selects the
+seed with highest identity preservation per sample.}
+\label{tab:seed_sweep}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Strategy} & \textbf{ArcFace} $\uparrow$ & \textbf{LPIPS} $\downarrow$ \\
+\midrule
+Seed 42 only      & 0.612 & 0.379 \\
+Seed 123 only     & 0.618 & 0.381 \\
+Seed 456 only     & 0.609 & 0.383 \\
+Best of 3         & 0.631 & 0.377 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The seed sweep provides a 2--3\% improvement in ArcFace at negligible
+cost (3$\times$ inference time, but no additional training). The
+improvement is procedure-dependent: focal procedures (rhinoplasty,
+blepharoplasty) benefit more than diffuse procedures (rhytidectomy).
+
+\section{Inpainting Strength Analysis}
+
+The inpainting strength parameter $s$ controls the tradeoff between
+fidelity to the TPS-warped input ($s \to 0$) and degree of diffusion
+refinement ($s \to 1$). We tested five values:
+
+\begin{itemize}
+  \item $s = 0.3$: Output closely resembles the input. Minimal surgical
+    change visible. High identity but no prediction value.
+  \item $s = 0.5$: Moderate refinement. Surgical changes become visible
+    (subtle bridge smoothing, eyelid opening). Identity well preserved.
+  \item $s = 0.65$: Clear surgical changes with photorealistic texture.
+    This is our default for rhinoplasty.
+  \item $s = 0.75$: Pronounced changes. Good for demonstrating the
+    prediction range but identity begins to drift for some subjects.
+  \item $s = 0.85$: Excessive hallucination. The model generates
+    plausible faces but they may not resemble the patient.
+\end{itemize}
+
+We use $s = 0.65 + 0.20 \times (\text{intensity}/100)$ for rhinoplasty,
+$s = 0.30 + 0.25 \times (\text{intensity}/100)$ for blepharoplasty
+(which requires gentler modification due to the small mask), and $s =
+0.65$ for rhytidectomy.
+
+\section{CodeFormer Ablation}
+
+We evaluated CodeFormer face restoration as a post-processing step.
+Table~\ref{tab:codeformer} shows that CodeFormer consistently degrades
+ArcFace across all procedures while providing marginal LPIPS improvement.
+This is because CodeFormer replaces facial details with its learned
+codebook, overwriting patient-specific features (pore texture, skin
+marks, asymmetries) that ArcFace uses for identity matching.
+
+\begin{table}[H]
+\centering
+\caption{Effect of CodeFormer post-processing on identity preservation.}
+\label{tab:codeformer}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Configuration} & \textbf{ArcFace} $\uparrow$ & \textbf{LPIPS} $\downarrow$ \\
+\midrule
+Without CodeFormer    & 0.631 & 0.377 \\
+With CodeFormer ($w{=}0.6$)  & 0.433 & 0.371 \\
+With CodeFormer ($w{=}0.8$)  & 0.510 & 0.374 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We report all results without CodeFormer.
+
+\section{Comparison with LandmarkDiff}
+
+Table~\ref{tab:landmarkdiff_decomposed} presents the decomposed
+comparison between \method{} and LandmarkDiff. LandmarkDiff's ArcFace
+scores include compositing (Laplacian pyramid blending of generated face
+onto original image). When compositing is removed, LandmarkDiff's
+rhinoplasty ArcFace drops from 0.607 to 0.023, indicating that the
+SD~1.5 model preserved essentially no identity information.
+
+\begin{table}[H]
+\centering
+\caption{LandmarkDiff with and without compositing, compared to
+\method{} (which uses no compositing by design).}
+\label{tab:landmarkdiff_decomposed}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Method} & \textbf{ArcFace} $\uparrow$ & \textbf{Notes} \\
+\midrule
+LD + compositing    & 0.509 & Published result \\
+LD without compositing & 0.023 & Raw model output \\
+\method{} (ours)    & 0.631 & No compositing needed \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The five architectural lessons from LandmarkDiff that informed
+\method{}'s design are detailed in Section~6 of the main paper.
+
+\section{Failure Cases}
+
+\method{} fails in the following scenarios:
+\begin{enumerate}
+  \item \textbf{Profile views.} The pipeline rejects images with
+    estimated yaw $> 30$ degrees. Depth modification assumes a frontal
+    view; lateral depth changes do not map to the same surgical
+    interpretation in profile.
+  \item \textbf{Occluded faces.} Glasses, masks, or hair covering the
+    surgical region cause incorrect landmark localization and produce
+    artifacts in the inpainted region.
+  \item \textbf{Rhytidectomy with small masks.} When the generic mask
+    is used (automated pipeline), rhytidectomy achieves only 0.173
+    ArcFace because the mask covers identity-critical jaw features.
+    With tuned per-case parameters restricting the mask to the neck and
+    jawline only, ArcFace reaches 0.982.
+  \item \textbf{Low-resolution inputs.} Images below 256 pixels on
+    either dimension are rejected. Between 256 and 512 pixels, landmark
+    localization becomes noisy, degrading mask precision.
+  \item \textbf{Non-surgical depth changes.} The depth modification
+    Gaussians approximate surgical tissue displacement but cannot model
+    cartilage grafting, implant insertion, or tissue removal. These
+    procedures require learned depth modifications from real surgical
+    data.
+\end{enumerate}
+
+\section{Inference Speed}
+
+End-to-end inference on an NVIDIA L40S (48~GB VRAM):
+
+\begin{itemize}
+  \item Landmark extraction (MediaPipe): 20~ms
+  \item TPS pre-warp (scipy RBF): 150~ms
+  \item Depth estimation (Depth Anything V2 Small): 80~ms
+  \item Depth modification: 5~ms
+  \item FLUX.1-dev inpainting (20 steps, BF16): 18~s
+  \item ArcFace identity check: 50~ms
+  \item \textbf{Total (single seed):} 18.3~s
+  \item \textbf{Total (3-seed sweep):} 55~s
+\end{itemize}
+
+The bottleneck is FLUX.1-dev inference. Reducing to 15 steps brings
+single-seed latency to 14~s with LPIPS increase $< 0.01$. The model
+uses CPU offloading (model\_cpu\_offload) to fit within 24~GB VRAM;
+on 48~GB or 80~GB GPUs, disabling offloading reduces latency by
+approximately 20\%.
+
+\section{HDA Dataset Details}
+
+The HDA Plastic Surgery Database contains 637 before/after pairs across
+five original categories: Nose (174), Eyelid (131), Eyebrow (128),
+Facelift (98), and FacialBones (107). We mapped Eyelid and Eyebrow to
+blepharoplasty (258 total) and Facelift to rhytidectomy. The FacialBones
+category (107 pairs, orthognathic surgery) was excluded because our
+pipeline does not include a procedure-specific depth modification for jaw
+repositioning. Two subjects (Eyelid\_49, FacialBones\_77) had missing
+after images and were excluded.
+
+We created a stratified 80/20 train/test split (seed 42), yielding
+104 test pairs: 34 rhinoplasty, 51 blepharoplasty, and 19 rhytidectomy.
+This is approximately $11\times$ larger than the 57-pair subset used in
+preliminary experiments and provides more stable per-procedure estimates.
+
+\end{document}

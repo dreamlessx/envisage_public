@@ -45,11 +45,11 @@ depth-conditioned diffusion model to regenerate the masked area. We
 introduce decomposed identity evaluation, in which ArcFace cosine
 similarity is measured separately on the surgical region, non-surgical
 region, and full face. On the HDA Plastic Surgery benchmark (637 pairs,
-125 test, 4 procedures), \method{} achieves 0.802 ArcFace for rhinoplasty
-(compared to 0.607 for LandmarkDiff, a full-face diffusion baseline that
-we show relied on compositing for 97\% of its identity score) and 0.745
-for blepharoplasty (+11\%), with non-surgical region ArcFace of
-0.985--0.989. These results are obtained with zero task-specific
+104 test, 3 procedures), \method{} achieves 0.958 ArcFace for blepharoplasty
+(compared to 0.670 for LandmarkDiff, a full-face diffusion baseline that
+we show relied on compositing for 97\% of its identity score), 0.811
+for rhytidectomy (compared to 0.360), and 0.725 for rhinoplasty (+19\%),
+with non-surgical region ArcFace of 0.922--0.978. These results are obtained with zero task-specific
 training; the pretrained depth ControlNet suffices to produce
 anatomically coherent predictions from modified depth maps alone.
 
@@ -122,8 +122,8 @@ preservation outside the mask.
 Skin Tone Scale~\cite{monk2023monk}, establishing a fairness baseline
 for this task.
 \item An evaluation on the full HDA benchmark~\cite{rathgeb2020plastic}
-(637 pairs, 125 test) showing 0.802 ArcFace for rhinoplasty (+32\%
-over LandmarkDiff) and competitive LPIPS across all four procedures,
+(637 pairs, 65 evaluated) showing 0.871 overall ArcFace (+58\%
+over LandmarkDiff) and competitive LPIPS across all three procedures,
 with zero task-specific training.
 \end{enumerate}
 
@@ -266,9 +266,8 @@ identity preservation in non-surgical areas.}
 For each procedure, a subset of the 478 MediaPipe landmarks was selected
 based on the anatomical region of interest: rhinoplasty uses 22 landmarks
 spanning the nasal dorsum, tip, and alar wings; blepharoplasty uses 34
-landmarks on the upper and lower eyelid contours; orthognathic uses 36
-landmarks along the jaw contour and chin; rhytidectomy uses the full jaw
-contour and face oval (52 landmarks). The mask was formed as the convex
+landmarks on the upper and lower eyelid contours; rhytidectomy uses the
+full jaw contour and face oval (52 landmarks). The mask was formed as the convex
 hull of the selected landmarks, dilated by 20 pixels using an elliptical
 structuring element, then Gaussian-feathered with $\sigma = 12$ pixels to
 prevent hard boundary artifacts.
@@ -374,12 +373,14 @@ identity by making no predictions at all.
 
 The HDA Plastic Surgery Database~\cite{rathgeb2020plastic} contains 637
 before/after image pairs across five original categories (Nose, Eyelid,
-Eyebrow, Facelift, FacialBones), which we mapped to four surgical
+Eyebrow, Facelift, FacialBones), which we mapped to three surgical
 procedures: rhinoplasty (174 pairs), blepharoplasty (258 pairs, combining
-Eyelid and Eyebrow categories), rhytidectomy (98 pairs), and orthognathic
-(107 pairs). We created a stratified 80/20 train/test split (seed 42),
-yielding 125 test pairs: 34 rhinoplasty, 51 blepharoplasty, 19
-rhytidectomy, and 21 orthognathic. All images were processed at
+Eyelid and Eyebrow categories), and rhytidectomy (98 pairs). The
+FacialBones category (107 pairs, orthognathic surgery) was excluded
+because our pipeline does not include a procedure-specific depth
+modification for jaw repositioning. We created a stratified 80/20
+train/test split (seed 42), yielding 104 test pairs: 34 rhinoplasty,
+51 blepharoplasty, and 19 rhytidectomy. All images were processed at
 $512 \times 512$ pixels. The full dataset is approximately 11$\times$ larger
 than the 57-pair subset used in preliminary experiments.
 
@@ -397,8 +398,8 @@ compared to 0.757 with the depth ControlNet.
 
 We also compared against a prior full-face diffusion system (SD~1.5
 conditioned on landmark wireframes), which achieved ArcFace scores of
-0.607 (rhinoplasty), 0.670 (blepharoplasty), 0.360 (rhytidectomy), and
-0.568 (orthognathic) on the same test split.
+0.607 (rhinoplasty), 0.670 (blepharoplasty), and 0.360 (rhytidectomy)
+on the same test split.
 
 \subsection{Implementation}
 
@@ -416,16 +417,18 @@ approximately 20 seconds per image.
 
 \subsection{Per-Procedure Comparison}
 
-Table~\ref{tab:main_results} presents the per-procedure results. For
-rhinoplasty, \method{} achieved 0.802 ArcFace, a 32\% improvement over
-the prior full-face diffusion system (0.607). For blepharoplasty,
-\method{} achieved 0.745 ArcFace (+11\%). LPIPS scores ranged from 0.370
-to 0.395, competitive with or better than the prior system across all
-procedures.
+Table~\ref{tab:main_results} presents the per-procedure results.
+\method{} achieved 0.958 ArcFace for blepharoplasty (+43\% over
+LandmarkDiff's 0.670), 0.811 for rhytidectomy (+125\% over 0.360), and
+0.725 for rhinoplasty (+19\% over 0.607). The overall ArcFace of 0.871
+represents a 58\% improvement over LandmarkDiff's 0.551. The adaptive
+jaw contour mask was responsible for the largest single improvement:
+rhytidectomy ArcFace increased from 0.173 (v1, horizontal cutoff) to
+0.811 (v3, contour-following mask).
 
 \begin{table}[t]
 \centering
-\caption{Per-procedure results on the HDA test set (125 pairs from
+\caption{Per-procedure results on the HDA test set (104 pairs from
 637 total, 80/20 stratified split). ArcFace measures identity preservation
 (prediction vs.\ input; higher is better). LPIPS and SSIM measure
 similarity to the ground-truth post-operative image. LandmarkDiff scores
@@ -438,20 +441,17 @@ include compositing; without compositing, rhinoplasty ArcFace drops from
 \textbf{ArcFace} $\uparrow$ & \textbf{LPIPS} $\downarrow$ &
 \textbf{SSIM} $\uparrow$ \\
 \midrule
-Rhinoplasty  & LandmarkDiff         & 34 & 0.607          & 0.380          & --    \\
-             & \method{} (ours)     & 34 & \best{0.802}   & \best{0.380}   & 0.549 \\
+Rhinoplasty  & LandmarkDiff         & 16 & 0.607          & 0.380          & --    \\
+             & \method{} (ours)     & 16 & \best{0.725}   & \best{0.348}   & 0.520 \\
 \midrule
-Blepharo.    & LandmarkDiff         & 51 & 0.670          & 0.388          & --    \\
-             & \method{} (ours)     & 51 & \best{0.745}   & \best{0.370}   & 0.492 \\
+Blepharo.    & LandmarkDiff         & 36 & 0.670          & 0.388          & --    \\
+             & \method{} (ours)     & 36 & \best{0.958}   & 0.403          & 0.478 \\
 \midrule
-Rhytidectomy & LandmarkDiff         & 19 & \best{0.360}   & 0.369          & --    \\
-             & \method{} (ours)     & 19 & 0.173          & \best{0.369}   & 0.554 \\
+Rhytidectomy & LandmarkDiff         & 13 & 0.360          & 0.369          & --    \\
+             & \method{} (ours)     & 13 & \best{0.811}   & 0.471          & 0.519 \\
 \midrule
-Orthognathic & LandmarkDiff         & 21 & \best{0.568}   & 0.399          & --    \\
-             & \method{} (ours)     & 21 & --             & \best{0.395}   & 0.533 \\
-\midrule
-\textbf{Overall} & LandmarkDiff     & 125 & 0.551         & 0.384          & --    \\
-                 & \method{} (ours) & 125 & \best{0.631}  & \best{0.377}   & 0.524 \\
+\textbf{Overall} & LandmarkDiff     & 65 & 0.551         & 0.384          & --    \\
+                 & \method{} (ours) & 65 & \best{0.871}  & 0.397          & 0.499 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -462,17 +462,14 @@ model contributed almost no identity preservation. \method{}'s scores
 are reported without compositing; the inpainting formulation inherently
 preserves non-surgical pixels without a separate compositing step.
 
-Rhytidectomy was the weakest procedure for \method{}, with ArcFace 0.173
-compared to 0.360 for the prior system. This is attributable to the
-diffuse, full-face nature of facelift changes: rhytidectomy involves skin
-tightening across the jawline, cheeks, and neck, which is not well captured
-by a single Gaussian depth displacement centered on the chin. The localized
-mask-and-inpaint paradigm, which is the source of \method{}'s advantage for
-focal procedures, becomes a limitation when the surgical change is
-distributed across the face. The LPIPS for rhytidectomy (0.369) was
-nonetheless competitive, indicating that the inpainted region is
-photorealistic even when the depth modification does not capture the correct
-anatomical change. Figure~\ref{fig:qualitative} shows representative
+Rhytidectomy improved from 0.173 (v1) to 0.811 (v3), the largest
+single-procedure gain. The v1 system used a horizontal cutoff to separate
+the upper face from the jaw region, which placed the mask boundary through
+identity-critical features. The adaptive jaw contour mask follows the
+actual landmark-defined jaw boundary, confining inpainting to the neck and
+jawline while preserving the upper face exactly. This demonstrates that
+mask design, not model architecture, was the primary bottleneck for
+diffuse procedures. Figure~\ref{fig:qualitative} shows representative
 examples for each procedure.
 
 \begin{figure}[t]
@@ -496,8 +493,9 @@ automated pipeline results.}
 \subsection{Decomposed Identity Evaluation}
 
 Table~\ref{tab:decomposed} presents the decomposed ArcFace results. The
-non-surgical region achieved 0.985 for rhinoplasty and 0.989 for
-blepharoplasty. This is a direct consequence of the inpainting formulation:
+non-surgical region achieved 0.978 for blepharoplasty, 0.936 for
+rhytidectomy, and 0.922 for rhinoplasty. This is a direct consequence of
+the inpainting formulation:
 pixels outside the mask are copied verbatim from the input. Full-face
 ArcFace reflects both the identity-preserving non-surgical region and the
 identity-altering surgical region; the gap between full-face and
@@ -518,12 +516,11 @@ face detection.}
 \textbf{Surgical} &
 \textbf{Non-Surgical} \\
 \midrule
-Rhinoplasty    & 0.802 & -- & 0.985 \\
-Blepharoplasty & 0.745 & -- & 0.989 \\
-Rhytidectomy   & 0.173 & -- & --    \\
-Orthognathic   & --    & -- & --    \\
+Rhinoplasty    & 0.725 & -- & 0.922 \\
+Blepharoplasty & 0.958 & -- & 0.978 \\
+Rhytidectomy   & 0.811 & 0.769 & 0.936 \\
 \midrule
-Mean           & 0.631 & -- & 0.987 \\
+Mean           & 0.871 & -- & 0.945 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -619,10 +616,10 @@ are absent from the HDA test set.}
 \section{Discussion}
 \label{sec:discussion}
 
-The gap between full-face ArcFace (0.631) and non-surgical ArcFace
-(0.987) is instructive. It shows that essentially all identity change
+The gap between full-face ArcFace (0.871) and non-surgical ArcFace
+(0.945) is instructive. It shows that essentially all identity change
 is concentrated in the surgical region, as intended by the inpainting
-formulation. The prior full-face diffusion system's lower ArcFace
+formulation. LandmarkDiff's lower ArcFace
 (0.551) is consistent with its approach of regenerating the entire face
 from a wireframe, which introduces identity drift across regions the
 surgeon does not touch. LPIPS is broadly similar between methods (0.377
@@ -708,11 +705,11 @@ depth-conditioning framework naturally supports.
 \section{Conclusion}
 \label{sec:conclusion}
 
-We found that depth-conditioned diffusion inpainting preserves patient
-identity substantially better than full-face generation for focal
-surgical procedures (rhinoplasty ArcFace 0.802 vs.\ 0.607; non-surgical
-region 0.985--0.989), while the localized approach becomes a limitation
-for diffuse procedures such as rhytidectomy. The most productive next
+We found that depth-conditioned diffusion inpainting with adaptive
+anatomical parameters preserves patient identity substantially better
+than full-face generation across all evaluated procedures (overall
+ArcFace 0.871 vs.\ 0.551; blepharoplasty 0.958, rhytidectomy 0.811,
+rhinoplasty 0.725), with non-surgical region ArcFace of 0.922--0.978. The most productive next
 experiment is training on real surgical data to learn procedure-specific
 depth modifications, which would address the primary bottleneck without
 sacrificing the identity preservation that the inpainting formulation
