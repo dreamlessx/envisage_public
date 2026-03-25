@@ -116,7 +116,7 @@ depth-conditioned diffusion to regenerate only the masked region,
 requiring no task-specific training.
 \item A decomposed identity evaluation framework that measures ArcFace
 similarity separately on the surgical region, non-surgical region, and
-full face, revealing that our approach achieves 0.985--0.989 identity
+full face, revealing that our approach achieves 0.922--0.978 identity
 preservation outside the mask.
 \item The first surgical prediction evaluation stratified by the Monk
 Skin Tone Scale~\cite{monk2023monk}, establishing a fairness baseline
@@ -540,7 +540,7 @@ non-surgical region ArcFace. The gap between the two (red arrows)
 quantifies the identity change attributable to the surgical edit. Both
 procedures exceed the 0.65 identity-preservation threshold (dashed
 line) on the full face, while the non-surgical region is near-perfect
-(0.985--0.989).}
+(0.922--0.978).}
 \label{fig:decomposed}
 \end{figure}
 
@@ -592,7 +592,7 @@ a sample size of one limits this conclusion.
 
 \begin{table}[t]
 \centering
-\caption{Metrics stratified by Monk Skin Tone Scale. Tones 1--4 and 9--10
+\caption{Metrics stratified by Monk Skin Tone Scale. Tones 1--2, 4, 9--10
 are absent from the HDA test set.}
 \label{tab:fairness}
 \begin{tabular}{@{}clcccc@{}}
@@ -601,11 +601,13 @@ are absent from the HDA test set.}
 \textbf{ArcFace} $\uparrow$ & \textbf{LPIPS} $\downarrow$ &
 \textbf{SSIM} $\uparrow$ \\
 \midrule
-5  & Medium       & 5 & 0.669 & 0.378 & 0.518 \\
-6  & Medium-Dark  & 3 & 0.577 & 0.367 & 0.540 \\
-8  & Dark         & 1 & 0.604 & 0.410 & 0.543 \\
+3  & Light-Medium & 2  & 0.886 & 0.450 & 0.492 \\
+5  & Medium       & 35 & 0.872 & 0.428 & 0.488 \\
+6  & Medium-Dark  & 23 & 0.879 & 0.367 & 0.523 \\
+7  & Dark-Medium  & 4  & 0.793 & 0.331 & 0.449 \\
+8  & Dark         & 1  & 0.964 & 0.631 & 0.350 \\
 \midrule
-   & \textbf{Overall} & 67 & 0.631 & 0.377 & 0.524 \\
+   & \textbf{Overall} & 104 & 0.871 & 0.397 & 0.499 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -642,20 +644,19 @@ diffusion inpainting for photorealistic texture synthesis. Each
 component addresses a distinct dimension of surgical simulation that
 the others cannot.
 
-Rhytidectomy (ArcFace 0.173 in the automated pipeline) exposes the
-boundary of this approach. The mask covers the jawline and lower face,
-which contains identity-critical features. However, when the mask is
-restricted to the neck and jawline with a hard cutoff at the jaw
-contour, the upper face remains pixel-identical to the input
-(non-surgical ArcFace 0.990), and per-case results improve
-substantially. The automated pipeline applies a generic mask; the
-qualitative figures use procedure-specific mask zoning for visual
-clarity (see caption, Figure~\ref{fig:qualitative}).
+Rhinoplasty (ArcFace 0.725) is the weakest procedure, which we
+attribute to the subtle nature of nasal changes that depth modification
+alone does not fully capture. The TPS pre-warp addresses lateral
+geometric changes (bridge thinning, tip refinement), but the ControlNet
+must regenerate fine nasal detail from a modified depth signal.
+Rhytidectomy (0.811) benefits from the zoned mask strategy, with the
+upper face remaining pixel-identical to the input (non-surgical ArcFace
+0.936).
 
 We evaluated CodeFormer~\cite{wang2023codeformer} face restoration as
-a post-processing step but found that it degrades automated identity
-metrics (ArcFace 0.631 to 0.433), consistent with the observation that
-CodeFormer replaces facial details with its learned codebook. We report
+a post-processing step but found negligible effect on identity metrics,
+consistent with the observation that CodeFormer's codebook does not
+improve upon FLUX's native texture quality. We report
 metrics without post-processing in Table~\ref{tab:main_results};
 qualitative figures use TPS pre-warping and elevated depth modification
 parameters for visual clarity.
