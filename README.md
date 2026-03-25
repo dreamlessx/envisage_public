@@ -47,6 +47,8 @@ Predict what a patient will look like after facial surgery from a single photogr
 
 Existing approaches to surgical outcome prediction fall into five categories. Each has a fundamental limitation that Envisage addresses.
 
+<div align="center">
+
 | Approach | Examples | Core limitation | Envisage alternative |
 |:---------|:---------|:----------------|:---------------------|
 | Commercial hardware systems | Crisalix, Vectra 3D | $30,000 to $50,000 dedicated hardware; proprietary; results not reproducible | Single 2D photo input. Open-source code and evaluation framework. |
@@ -54,6 +56,8 @@ Existing approaches to surgical outcome prediction fall into five categories. Ea
 | Landmark-conditioned diffusion | LandmarkDiff (our prior work) | 96% of identity score came from compositing, not the model (rhinoplasty ArcFace: 0.607 composited vs. 0.023 raw). SD 1.5 at 512x512 lacked resolution for clinical detail. | Inpainting preserves identity architecturally. Decomposed ArcFace prevents compositing from inflating metrics. |
 | Generic face editors | DragDiffusion, FaceApp | No anatomical priors, no procedure-specific guidance, no clinical evaluation | Depth conditioning maps to tissue displacement. Parameters scale with measured anatomy per procedure. |
 | 3D morphable models | ACMT-Net, GPOSC-Net | Require CT scans or multi-view input; not accessible from a single photograph | Works from one photo. No CT scans, no depth sensors, no multi-view capture. |
+
+</div>
 
 **What makes Envisage different:**
 
@@ -101,6 +105,8 @@ Envisage ships as a zero-shot inpainting system built on FLUX.1-dev. The approac
 
 Our earlier system, [LandmarkDiff](https://github.com/dreamlessx/LandmarkDiff-public), used SD 1.5 conditioned on sparse landmark wireframes. Five architectural decisions proved counterproductive. Envisage is the result of correcting each one.
 
+<div align="center">
+
 | LandmarkDiff | Envisage | Why |
 |:-------------|:---------|:----|
 | SD 1.5 at 512x512 | FLUX.1-dev at 1024x1024 | Sufficient resolution for clinical facial detail |
@@ -108,6 +114,8 @@ Our earlier system, [LandmarkDiff](https://github.com/dreamlessx/LandmarkDiff-pu
 | Full-face generation + compositing | Inpainting | Architectural identity preservation; non-surgical pixels are never regenerated |
 | TPS synthetic training data | Zero-shot pretrained weights | Avoids geometric artifacts from training on warped faces |
 | Full-face ArcFace only | Decomposed evaluation | Prevents compositing from inflating identity metrics (96% of LD score was composited pixels) |
+
+</div>
 
 ---
 
@@ -221,12 +229,16 @@ Envisage includes a decomposed evaluation framework that measures identity prese
 
 Metrics:
 
+<div align="center">
+
 | Metric | What it measures | How it's computed |
 |--------|-----------------|-------------------|
 | ArcFace | Identity preservation | Cosine similarity between input and output face embeddings (IResNet-50, 512-dim) |
 | LPIPS | Perceptual similarity | Learned Perceptual Image Patch Similarity (AlexNet backbone) |
 | DISTS | Structural + texture | Deep Image Structure and Texture Similarity |
 | KID | Distribution realism | Kernel Inception Distance |
+
+</div>
 
 ### Running evaluation
 
@@ -245,6 +257,8 @@ Evaluated on the [HDA Plastic Surgery Face Database](https://doi.org/10.1109/CVP
 
 ### Main Results
 
+<div align="center">
+
 | Procedure | N | ArcFace | LPIPS | SSIM |
 |:----------|:---:|:---:|:---:|:---:|
 | Blepharoplasty | 36 | **0.958** +/- 0.019 | 0.403 | 0.478 |
@@ -252,17 +266,23 @@ Evaluated on the [HDA Plastic Surgery Face Database](https://doi.org/10.1109/CVP
 | Rhinoplasty | 16 | **0.725** +/- 0.063 | 0.348 | 0.520 |
 | **Overall** | **65** | **0.871** | **0.397** | **0.499** |
 
+</div>
+
 N reflects pairs where ArcFace detected a face in both prediction and ground truth (36/51 blepharoplasty, 16/34 rhinoplasty, 13/19 rhytidectomy; 65 of 104 total test pairs). LPIPS and SSIM are computed on all 104 pairs.
 
 **Per-procedure notes.** Blepharoplasty uses a small adaptive per-eye mask and low inpainting strength (0.40), giving high identity scores because most of the face is untouched. Rhytidectomy uses a two-pass approach: neck inpainting at strength 0.65, then a thin jawline transition strip, with TPS pre-warp to tighten jowls and neck. The higher variance (+/- 0.107) reflects the difficulty of preserving identity when regenerating the jawline-to-neck region. Rhinoplasty uses TPS bridge thinning + depth hump reduction + nose-region inpainting at strength 0.75.
 
 ### Comparison with LandmarkDiff
 
+<div align="center">
+
 | Procedure | Envisage ArcFace | LD ArcFace (composited) | LD ArcFace (raw) |
 |:----------|:---:|:---:|:---:|
 | Blepharoplasty | **0.958** | 0.670 | 0.311 |
 | Rhytidectomy | **0.811** | 0.360 | 0.094 |
 | Rhinoplasty | **0.725** | 0.607 | 0.023 |
+
+</div>
 
 LandmarkDiff (SD 1.5 + ControlNet wireframe, 50K TPS pretrain + 25K fine-tune) requires compositing to produce usable scores. Without compositing, its raw ArcFace scores are near zero: rhinoplasty 0.023, rhytidectomy 0.094, blepharoplasty 0.311. The SD 1.5 model preserved essentially no identity information; 96% of the published score came from copying input pixels over the generated output. Envisage's zero-shot inpainting approach surpasses LandmarkDiff's trained model by 58% on overall ArcFace (0.871 vs 0.551) without any task-specific training, and requires no compositing because the inpainting formulation preserves non-surgical pixels by construction.
 
@@ -272,11 +292,15 @@ LandmarkDiff (SD 1.5 + ControlNet wireframe, 50K TPS pretrain + 25K fine-tune) r
 <img src="paper/figures/figM3_decomposed_arcface.png" width="550">
 </div>
 
+<div align="center">
+
 | Procedure      | Full Face | Surgical Region | Non-surgical Region |
 |:---------------|:---------:|:---------------:|:-------------------:|
 | Blepharoplasty | 0.958     |                 | 0.978               |
 | Rhinoplasty    | 0.725     |                 | 0.922               |
 | Rhytidectomy   | 0.811     | 0.769           | 0.936               |
+
+</div>
 
 Non-surgical regions score 0.922 to 0.978, confirming near-perfect identity preservation outside the mask. This is an architectural guarantee of the inpainting formulation, not a learned property. Surgical-region ArcFace is omitted where the cropped region was too small for ArcFace face detection. Rhytidectomy is the only procedure where the surgical region is large enough for the detector (0.769).
 
@@ -284,11 +308,17 @@ Non-surgical regions score 0.922 to 0.978, confirming near-perfect identity pres
 
 To test whether procedure-specific training improves over the zero-shot pipeline, we trained three FLUX-based approaches on the 426-pair HDA training set:
 
+<div align="center">
+
 | Approach | Base Model | Method | Training |
 |:---------|:----------|:-------|:---------|
 | ICEdit | FLUX.1-Fill-dev | Pretrained MoE LoRA, dual-panel editing | 0 steps (inference only) |
 | Kontext | FLUX.1-Kontext-dev | Procedure LoRA with trigger words | 500 steps per procedure |
 | Fill-dev | FLUX.1-Fill-dev | Mask-aware LoRA with surgical masks | 500 steps per procedure |
+
+</div>
+
+<div align="center">
 
 | Procedure | Zero-shot | ICEdit | Kontext | Fill-dev |
 |:----------|:---:|:---:|:---:|:---:|
@@ -299,6 +329,8 @@ To test whether procedure-specific training improves over the zero-shot pipeline
 | Rhinoplasty LPIPS | **0.348** | 0.868 | 1.007 | 0.914 |
 | Rhytidectomy LPIPS | **0.471** | 0.947 | 1.106 | 0.978 |
 
+</div>
+
 Blank cells indicate ArcFace could not detect a face in the output. All three trained approaches produce substantially worse results than the zero-shot pipeline. The root cause: Kontext and ICEdit generate the entire output image (destroying non-surgical pixels), while the zero-shot pipeline modifies only the masked surgical region. Fill-dev is mask-aware in principle, but 500 steps on 79 to 207 pairs is insufficient for a 12B-parameter model to learn subtle surgical transformations. This validates the core architectural choice: masked inpainting with depth conditioning and TPS pre-warping is more effective than end-to-end learned transformations for this task.
 
 ---
@@ -307,6 +339,8 @@ Blank cells indicate ArcFace could not detect a face in the output. All three tr
 
 All metrics are stratified by the 10-point Monk Skin Tone (MST) Scale to evaluate fairness across skin tones. MST classification is performed automatically from the input photo.
 
+<div align="center">
+
 | MST | Label | N | ArcFace | LPIPS | SSIM |
 |:---:|:------|:---:|:---:|:---:|:---:|
 | 3 | Light-Medium | 2 | 0.886 | 0.450 | 0.492 |
@@ -314,6 +348,8 @@ All metrics are stratified by the 10-point Monk Skin Tone (MST) Scale to evaluat
 | 6 | Medium-Dark | 23 | 0.879 | 0.367 | 0.523 |
 | 7 | Dark-Medium | 4 | 0.793 | 0.331 | 0.449 |
 | 8 | Dark | 1 | 0.964 | 0.631 | 0.350 |
+
+</div>
 
 ArcFace varies by 17.1 percentage points across Monk Scale categories (MST 7: 0.793 vs MST 8: 0.964). Sample sizes in the tails (N=1 to 4) are too small for reliable fairness conclusions. The HDA dataset skews toward MST 5 to 6; a broader dataset is needed to validate equitable performance across skin tones.
 
@@ -347,6 +383,8 @@ hf_space/           HF Spaces deployment
 
 Procedure-specific parameters are defined in `configs/`. Each config controls:
 
+<div align="center">
+
 | Parameter | Description |
 |-----------|-------------|
 | `landmarks` | MediaPipe landmark indices for the surgical region |
@@ -356,6 +394,8 @@ Procedure-specific parameters are defined in `configs/`. Each config controls:
 | `tps_handles` | Thin-plate spline control points and target displacements |
 | `controlnet_scale` | Depth ControlNet conditioning strength |
 | `num_seeds` | Number of seeds for the sweep (default: 3) |
+
+</div>
 
 All spatial parameters (dilation, kernel size, displacement) are specified relative to anatomical measurements rather than absolute pixel values. This makes the pipeline resolution-independent and adapts automatically to different face sizes.
 
