@@ -23,13 +23,16 @@ Upload a frontal face photo, select a procedure, and generate a predicted post-s
 
 No post-processing. No task-specific training. Identity preserved by inpainting formulation.
 
-## Results (HDA Test Set, 125 pairs)
+## Results (HDA Test Set, 104 pairs)
 
-| Procedure | ArcFace | LPIPS | SSIM |
-|-----------|---------|-------|------|
-| Rhinoplasty | 0.802 | 0.380 | 0.549 |
-| Blepharoplasty | 0.745 | 0.370 | 0.492 |
-| Rhytidectomy | 0.173 | 0.369 | 0.554 |
+| Procedure      | N  | ArcFace | LPIPS | SSIM  |
+|:---------------|:--:|:-------:|:-----:|:-----:|
+| Blepharoplasty | 36 | 0.958   | 0.403 | 0.478 |
+| Rhytidectomy   | 13 | 0.811   | 0.471 | 0.519 |
+| Rhinoplasty    | 16 | 0.725   | 0.348 | 0.520 |
+| **Overall**    | **65** | **0.871** | **0.397** | **0.499** |
+
+ArcFace N reflects pairs where face detection succeeded in both images (65 of 104 total test pairs).
 
 ## Supported Procedures
 

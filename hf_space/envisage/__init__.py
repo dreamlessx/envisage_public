@@ -1,1 +1,1 @@
-"""envisage: facial surgery outcome prediction pipeline."""
+"""Envisage: facial surgery outcome prediction pipeline."""

@@ -475,5 +475,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Note: requires FLUX pipeline loaded separately (GPU needed)
-    print(f"Pipeline CLI: {args.procedure} on {args.image}")
-    print("Note: Full inference requires GPU. Use app.py for the Gradio demo.")
+    logging.basicConfig(level=logging.INFO)
+    log.info("Pipeline CLI: %s on %s", args.procedure, args.image)
+    log.info("Note: Full inference requires GPU. Use app.py for the Gradio demo.")

@@ -192,7 +192,8 @@ def get_region_points(
 
     Args:
         landmarks: Full 478-point landmarks.
-        procedure: One of 'rhinoplasty', 'blepharoplasty', 'orthognathic'.
+        procedure: One of 'rhinoplasty', 'blepharoplasty', 'orthognathic',
+            'rhytidectomy'.
 
     Returns:
         (N, 2) array of landmark points for the procedure region.

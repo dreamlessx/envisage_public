@@ -1,7 +1,8 @@
-"""envisage: Facial Surgery Outcome Prediction Demo.
+"""Envisage: Facial Surgery Outcome Prediction Demo.
 
-Gradio app for predicting rhinoplasty outcomes using FLUX.1-dev
-inpainting with depth-conditioned ControlNet.
+Gradio app for predicting facial surgery outcomes (rhinoplasty,
+blepharoplasty, rhytidectomy) using FLUX.1-dev inpainting with
+depth-conditioned ControlNet.
 
 Deploy: gradio app.py
 HF Spaces: set app_file=app.py in README.md

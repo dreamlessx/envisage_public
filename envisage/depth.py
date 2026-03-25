@@ -10,6 +10,7 @@ Supported modifications:
   - rhinoplasty: dorsal hump reduction (flatten nasal bridge depth)
   - blepharoplasty: lid region depth smoothing
   - orthognathic: jaw projection depth change
+  - rhytidectomy: jaw contour tightening
 """
 
 from __future__ import annotations

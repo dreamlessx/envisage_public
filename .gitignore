@@ -11,3 +11,12 @@ data/shards*/
 slurm_*.out
 *.log
 .DS_Store
+*.aux
+*.bbl
+*.blg
+*.out
+*.synctex.gz
+wandb/
+outputs/
+.vscode/
+.idea/

@@ -7,6 +7,7 @@ Supported procedures:
   - rhinoplasty: nose dorsum + tip + wings
   - blepharoplasty: upper/lower eyelids
   - orthognathic: jaw contour + chin
+  - rhytidectomy: jaw contour + face oval (adaptive contour-following mask)
 
 Each mask is:
   1. Convex hull of procedure-specific landmarks

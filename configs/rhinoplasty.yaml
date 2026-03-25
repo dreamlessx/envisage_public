@@ -27,7 +27,7 @@ generation:
   num_inference_steps: 30
   guidance_scale: 3.5
   strength: 0.75
-  target_size: 1024
+  target_size: 512
 
 # Depth estimation
 depth:
