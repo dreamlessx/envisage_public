@@ -254,7 +254,7 @@ Evaluated on the [HDA Plastic Surgery Face Database](https://doi.org/10.1109/CVP
 
 N reflects pairs where ArcFace detected a face in both prediction and ground truth (36/51 blepharoplasty, 16/34 rhinoplasty, 13/19 rhytidectomy; 65 of 104 total test pairs). LPIPS and SSIM are computed on all 104 pairs.
 
-**Per-procedure notes.** Blepharoplasty uses a small adaptive per-eye mask and low inpainting strength (0.40), giving high identity scores because most of the face is untouched. Rhytidectomy uses a two-pass approach: neck inpainting at strength 0.65, then a thin jawline transition strip, with TPS pre-warp to tighten jowls and neck. The higher variance (+/- 0.107) reflects the difficulty of preserving identity when regenerating the jawline-to-neck region (up to 46% of face area). Rhinoplasty uses TPS bridge thinning + depth hump reduction + nose-region inpainting at strength 0.75.
+**Per-procedure notes.** Blepharoplasty uses a small adaptive per-eye mask and low inpainting strength (0.40), giving high identity scores because most of the face is untouched. Rhytidectomy uses a two-pass approach: neck inpainting at strength 0.65, then a thin jawline transition strip, with TPS pre-warp to tighten jowls and neck. The higher variance (+/- 0.107) reflects the difficulty of preserving identity when regenerating the jawline-to-neck region. Rhinoplasty uses TPS bridge thinning + depth hump reduction + nose-region inpainting at strength 0.75.
 
 ### Comparison with LandmarkDiff
 
@@ -278,7 +278,7 @@ LandmarkDiff (SD 1.5 + ControlNet wireframe, 50K TPS pretrain + 25K fine-tune) r
 | Rhinoplasty    | 0.725     |                 | 0.922               |
 | Rhytidectomy   | 0.811     | 0.769           | 0.936               |
 
-Non-surgical regions score 0.922 to 0.978, confirming near-perfect identity preservation outside the mask. This is an architectural guarantee of the inpainting formulation, not a learned property. Surgical-region ArcFace is omitted where the cropped region was too small for ArcFace face detection. Rhytidectomy is the only procedure where the surgical region is large enough for the detector (0.769), because its mask covers up to 46% of the face area.
+Non-surgical regions score 0.922 to 0.978, confirming near-perfect identity preservation outside the mask. This is an architectural guarantee of the inpainting formulation, not a learned property. Surgical-region ArcFace is omitted where the cropped region was too small for ArcFace face detection. Rhytidectomy is the only procedure where the surgical region is large enough for the detector (0.769).
 
 ### Training Ablation
 

@@ -55,9 +55,9 @@ and tip (approximately 3.4\% of the face area). The depth modification
 reduces the dorsal hump and narrows the bridge. For blepharoplasty,
 bilateral masks cover the upper eyelid creases (approximately 5.0\% of
 the face area), and the depth field lifts the crease to simulate tissue
-removal. For rhytidectomy, the mask extends from the jawline to the
-lower boundary of the image (approximately 46\% of the face area), and
-the depth modification tightens the jaw contour and smooths the neck.
+removal. For rhytidectomy, a zoned mask covers the neck and jawline transition
+region, and the depth modification tightens the jaw contour and smooths
+the neck.
 
 \begin{figure*}[t]
 \centering
@@ -322,7 +322,7 @@ corresponding ArcFace scores per procedure on the v3 test set.}
 \midrule
 Rhinoplasty     & 16 & $\sim$3.4  & 0.725 \\
 Blepharoplasty  & 36 & $\sim$5.0  & 0.958 \\
-Rhytidectomy    & 13 & $\sim$46   & 0.811 \\
+Rhytidectomy    & 13 &            & 0.811 \\
 \midrule
 Overall         & 65 &            & 0.871 \\
 \bottomrule
@@ -334,8 +334,8 @@ monotonic. Rhinoplasty has the smallest mask but the lowest ArcFace
 because the nose occupies the center of the face where ArcFace feature
 extraction is most sensitive. Blepharoplasty masks are slightly larger
 but positioned at the periphery of the identity-critical region,
-resulting in the highest ArcFace. Rhytidectomy covers nearly half the
-face area, yet achieves 0.811 ArcFace because the jaw and neck regions
+resulting in the highest ArcFace. Rhytidectomy covers a larger region
+(jaw and neck), yet achieves 0.811 ArcFace because these regions
 contribute less to identity than the central face.
 
 \section{CodeFormer Ablation}
