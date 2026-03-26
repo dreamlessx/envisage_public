@@ -166,7 +166,7 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 <div align="center">
 <img src="assets/rhinoplasty_result.png" width="700">
 
-*Sculpted bridge with defined tip. Depth modification creates a taller, straighter bridge profile. ArcFace: 0.892.*
+*Sculpted bridge with defined tip. Depth modification flattens the dorsal hump; TPS pre-warp thins the bridge. ArcFace: 0.915.*
 </div>
 
 ### Blepharoplasty
