@@ -276,23 +276,23 @@ prevent hard boundary artifacts.
 Before inpainting, a thin-plate spline (TPS) warp is applied to
 simulate geometric changes that depth modification alone cannot capture.
 For rhinoplasty, bridge sidewall landmarks (indices 193, 245, 188,
-174, 217 and their right-side mirrors) are displaced inward by 3 to 4
-pixels to thin the bridge, and tip lobule landmarks are displaced
+174, 217 and their right-side mirrors) are displaced inward by
+approximately 5 pixels (scaled by measured nose width) to thin the
+bridge, and tip lobule landmarks are displaced
 inward by 2 to 3 pixels to refine the tip. Alar landmarks (48, 278)
-receive zero displacement, preserving nostril width. No vertical
-displacement is applied; the nose retains its original length and
-projection.
+are displaced inward by 3.5 pixels to narrow the base, and the tip
+landmark is lifted upward by 2.0 pixels.
 
-For blepharoplasty, TPS displacement was computed independently for
-each eye based on measured crease height asymmetry, applying greater
-correction to the more ptotic lid to achieve bilateral symmetry.
-Upper eyelid skin fold landmarks are lifted upward; the iris, lash
-line, and lower lid landmarks are anchored in place, and the original
-eye pixels are pasted back after warping to preserve fine detail.
+For blepharoplasty, a uniform 2.5-pixel upward lift is applied to the
+upper eyelid skin fold landmarks of both eyes; the iris, lash line,
+and lower lid landmarks are anchored in place. Asymmetry is handled
+at the mask stage: the more hooded eye receives proportionally greater
+mask dilation, so that both eyes end up with approximately equal
+mask coverage after adaptive dilation.
 
-For rhytidectomy, jowl landmarks are lifted upward by 3 to 4 pixels
-and synthetic neck contour points are pulled inward and upward by
-6 to 8 pixels. Upper face landmarks receive zero displacement.
+For rhytidectomy, TPS pre-warping is not applied; the depth
+modification and adaptive jaw contour mask alone produce the
+geometric change.
 
 The TPS interpolation uses a radial basis function
 (scipy RBFInterpolator, thin-plate spline kernel),
@@ -312,20 +312,23 @@ G_k(x,y; c_k, \sigma_k)\bigr]
 \end{equation}
 where each $G_k$ is a 2D Gaussian centered at a procedure-specific
 landmark, and $\alpha_k$ controls each displacement magnitude.
-For rhinoplasty, two Gaussians are applied: a broad one at the nasion
-(landmark~6, $\sigma_x = 0.05w$, $\sigma_y = 0.10h$, $\alpha = 60$)
-for dorsal hump reduction, and a tight one at the nasal tip (landmark~1,
-$\sigma_x = 0.015w$, $\sigma_y = 0.015h$, $\alpha = 40$) for the
-supratip break. Depth modification captures profile changes (dorsal
+For rhinoplasty, four Gaussians are applied with anatomy-relative
+spread: a broad hump-reduction Gaussian at the nasion (landmark~6,
+$\sigma_x = 0.5 \times \text{nose\_width}$,
+$\sigma_y = 0.6 \times \text{nose\_height}$), left and right
+side-contrast Gaussians offset laterally by
+$\pm 0.30 \times \text{nose\_width}$, and a tip Gaussian at
+landmark~1. The displacement intensity is scaled by the ratio of the
+nose's depth range to a reference value, so that a nose that is
+already flat receives less modification than a prominent one. Depth modification captures profile changes (dorsal
 hump flattening), while TPS pre-warping handles lateral geometric
 changes (bridge thinning, tip refinement); the combination addresses
 both dimensions of rhinoplasty.
 
-For rhytidectomy, the mask was divided into two zones with independent
-inpainting strengths: neck (strength 0.7) and jawline (strength 0.15),
-with the upper face excluded from inpainting entirely. Mask feathering
-was applied asymmetrically, blurring only the neck-side boundary to
-prevent upward bleed into facial features.
+For rhytidectomy, the adaptive jaw contour mask is inpainted in a
+single pass at strength 0.65. The mask follows the MediaPipe jaw
+contour (36 landmarks) and extends to the lower image boundary,
+covering the neck and jawline region uniformly.
 
 \subsection{Diffusion Inpainting}
 
@@ -677,7 +680,7 @@ regions that compositing could only partially correct; (4)~TPS-based
 synthetic training data produced geometric artifacts rather than realistic
 tissue changes; (5)~post-hoc compositing masked model failures rather than
 fixing them (0.607 ArcFace composited vs.\ 0.023 without for rhinoplasty). \method{}
-addresses each: FLUX.1-dev at $1024 \times 1024$ for high-fidelity
+addresses each: FLUX.1-dev at $512 \times 512$ for high-fidelity
 generation, dense depth maps for anatomically grounded conditioning,
 inpainting to constrain generation to the surgical mask, zero-shot
 pretrained weights instead of synthetic training, and decomposed evaluation
