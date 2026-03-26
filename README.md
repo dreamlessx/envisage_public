@@ -166,7 +166,7 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 <div align="center">
 <img src="assets/rhinoplasty_result.png" width="700">
 
-*Bridge straightening, tip refinement, and nostril narrowing. ArcFace: 0.936.*
+*Bridge straightening, tip refinement, and nostril narrowing. ArcFace: 0.836.*
 </div>
 
 ### Blepharoplasty
