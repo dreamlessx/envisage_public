@@ -166,7 +166,7 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 <div align="center">
 <img src="assets/rhinoplasty_result.png" width="700">
 
-*Bridge straightening, tip refinement, nostril reshaping. Depth-guided bridge linearization + symmetry correction TPS. ArcFace: 0.915.*
+*Straight bridge, refined tip, symmetric nostrils. ArcFace: 0.915.*
 </div>
 
 ### Blepharoplasty
@@ -174,7 +174,7 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 <div align="center">
 <img src="assets/blepharoplasty_result.png" width="700">
 
-*Upper eyelid de-hooding. Tiny mask (1.6% of face) with adaptive asymmetric correction. ArcFace: 0.905.*
+*Reduced upper eyelid hooding with adaptive per-eye correction. ArcFace: 0.905.*
 </div>
 
 ### Rhytidectomy
@@ -182,7 +182,7 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 <div align="center">
 <img src="assets/rhytidectomy_result.png" width="700">
 
-*Two-pass neck tightening and jawline definition. The upper face is pixel-identical to the input. ArcFace: 0.982.*
+*Tighter neck, defined jawline, reduced jowls. Upper face unchanged. ArcFace: 0.982.*
 </div>
 
 ---
