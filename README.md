@@ -317,15 +317,15 @@ LandmarkDiff (SD 1.5 + ControlNet wireframe, 50K TPS pretrain + 25K fine-tune) r
 
 <div align="center">
 
-| Procedure      | Full Face | Surgical Region | Non-surgical Region |
-|:---------------|:---------:|:---------------:|:-------------------:|
-| Blepharoplasty | 0.958     |                 | 0.978               |
-| Rhinoplasty    | 0.725     |                 | 0.922               |
-| Rhytidectomy   | 0.811     | 0.769           | 0.936               |
+| Procedure      | Full Face | Full Face (Tuned) | Surgical Region | Non-surgical Region |
+|:---------------|:---------:|:-----------------:|:---------------:|:-------------------:|
+| Blepharoplasty | 0.958     | 0.905             |                 | 0.978               |
+| Rhinoplasty    | 0.725     | 0.936             |                 | 0.922               |
+| Rhytidectomy   | 0.811     | 0.982             | 0.769           | 0.936               |
 
 </div>
 
-Non-surgical regions score 0.922 to 0.978, confirming near-perfect identity preservation outside the mask. This is an architectural guarantee of the inpainting formulation, not a learned property. Surgical-region ArcFace is omitted where the cropped region was too small for ArcFace face detection. Rhytidectomy is the only procedure where the surgical region is large enough for the detector (0.769).
+Non-surgical regions score 0.922 to 0.978, confirming near-perfect identity preservation outside the mask. This is an architectural guarantee of the inpainting formulation, not a learned property. "Full Face (Tuned)" shows per-case manually tuned parameters (strength, seed, prompt); "Full Face" is the automated pipeline. Surgical-region ArcFace is omitted where the cropped region was too small for ArcFace face detection. Rhytidectomy is the only procedure where the surgical region is large enough for the detector (0.769).
 
 ### Training Ablation
 
