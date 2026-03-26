@@ -245,7 +245,7 @@ No post-processing is applied. The simplicity is deliberate: each
 component addresses a distinct aspect of surgical simulation, and
 pixels outside the mask are copied from the input.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/figM1_pipeline.pdf}
 \caption{The \method{} pipeline. The input photograph is processed
@@ -258,7 +258,7 @@ modified depth via a pretrained ControlNet, regenerates only the masked
 region. Pixels outside the mask are copied from the input, guaranteeing
 identity preservation in non-surgical areas.}
 \label{fig:pipeline}
-\end{figure}
+\end{figure*}
 
 \subsection{Mask Generation}
 
@@ -304,12 +304,12 @@ surgical region.
 Monocular depth was estimated using Depth Anything V2
 Small~\cite{yang2024depth}, producing $D \in \mathbb{R}^{H \times W}$
 normalized to $[0, 255]$. The modified depth map was computed as:
-\begin{equation}
-D'(x,y) = M(x,y) \cdot \bigl[D(x,y) - \sum_k \alpha_k \cdot
-G_k(x,y; c_k, \sigma_k)\bigr]
-+ \bigl[1 - M(x,y)\bigr] \cdot D(x,y)
+\begin{multline}
+D'(x,y) = M \!\cdot\! \bigl[D(x,y) - \textstyle\sum_k \alpha_k \,
+G_k(x,y; c_k, \sigma_k)\bigr] \\
++ \bigl[1 - M\bigr] \cdot D(x,y)
 \label{eq:depth_mod}
-\end{equation}
+\end{multline}
 where each $G_k$ is a 2D Gaussian centered at a procedure-specific
 landmark, and $\alpha_k$ controls each displacement magnitude.
 For rhinoplasty, four Gaussians are applied with anatomy-relative
@@ -443,7 +443,7 @@ jaw contour mask was responsible for the largest single improvement:
 rhytidectomy ArcFace increased from 0.173 (v1, horizontal cutoff) to
 0.811 (v3, contour-following mask).
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{Per-procedure results on the HDA test set (104 pairs from
 637 total, 80/20 stratified split). ArcFace measures identity preservation
@@ -471,7 +471,7 @@ Rhytidectomy & LandmarkDiff         & 13 & 0.360          & \best{0.369}   &    
                  & \method{} (ours) & 65 & \best{0.871}  & 0.397          & 0.499 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 For context, LandmarkDiff's composited ArcFace of 0.607 (rhinoplasty)
 drops to 0.023 without compositing, indicating that the SD~1.5 diffusion
@@ -489,7 +489,7 @@ mask design, not model architecture, was the primary bottleneck for
 diffuse procedures. Figure~\ref{fig:qualitative} shows representative
 examples for each procedure.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/figM2_qualitative.png}
 \caption{Qualitative results for three procedures. Each row shows one
@@ -500,7 +500,7 @@ blepharoplasty (Eyelid\_98) with asymmetric upper eyelid lift. Bottom:
 rhytidectomy (Facelift\_33) with neck tightening and jaw definition;
 the upper face is pixel-identical to the input.}
 \label{fig:qualitative}
-\end{figure}
+\end{figure*}
 
 \subsection{Decomposed Identity Evaluation}
 
@@ -514,7 +514,7 @@ identity-altering surgical region; the gap between full-face and
 non-surgical scores reveals how much the surgical edit itself affects
 the face embedding.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{Decomposed ArcFace similarity by region. Non-surgical scores near
 1.0 confirm that inpainting preserves identity outside the mask. Surgical-region
@@ -535,7 +535,7 @@ Rhytidectomy   & 0.811 & 0.769 & 0.936 \\
 Mean           & 0.871 &      & 0.945 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 Figure~\ref{fig:decomposed} visualizes the gap between full-face and
 non-surgical ArcFace. The gap (0.197 for rhinoplasty, 0.020 for
@@ -543,7 +543,7 @@ blepharoplasty) represents the identity change attributable to the
 surgical edit itself; the near-unity non-surgical scores confirm that
 this change is confined to the masked region.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \includegraphics[width=0.65\textwidth]{figures/figM3_decomposed_arcface.png}
 \caption{Decomposed ArcFace similarity across all three procedures.
@@ -554,7 +554,7 @@ red line) is exceeded by all procedures. Non-surgical region scores
 (0.922 to 0.978) confirm near-perfect identity preservation outside
 the mask.}
 \label{fig:decomposed}
-\end{figure}
+\end{figure*}
 
 \subsection{Depth ControlNet Contribution}
 
@@ -578,7 +578,7 @@ This difference in mask coverage directly explains the per-procedure
 ArcFace variation in Table~\ref{tab:decomposed}: smaller masks preserve
 more of the original face embedding, yielding higher identity scores.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/figM4_mask_comparison.png}
 \caption{Mask coverage comparison across procedures. Colored overlay
@@ -589,7 +589,7 @@ Blepharoplasty (4.3\%) and rhinoplasty (4.0\%) are focal procedures;
 rhytidectomy (11.4\%) covers the jawline and neck. Smaller masks yield
 higher ArcFace because more of the original face is preserved.}
 \label{fig:mask_size}
-\end{figure}
+\end{figure*}
 
 \subsection{Monk Skin Tone Stratification}
 
@@ -602,7 +602,7 @@ MST~1 to 2, 4, or 9 to 10. ArcFace ranges from 0.793 (MST~7, $N{=}4$) to
 reliable fairness conclusions; a broader dataset is needed to validate
 equitable performance across skin tones.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{Metrics stratified by Monk Skin Tone Scale. Tones 1 to 2, 4, and 9 to 10
 are absent from the HDA test set.}
@@ -622,7 +622,7 @@ are absent from the HDA test set.}
    & \textbf{Overall} & 65 & 0.871 & 0.397 & 0.499 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 %% ========================================================================
 %% 6. DISCUSSION
@@ -729,6 +729,14 @@ experiment is training on real surgical data to learn procedure-specific
 depth modifications, which would address the primary bottleneck without
 sacrificing the identity preservation that the inpainting formulation
 guarantees.
+
+%% ========================================================================
+%% ACKNOWLEDGMENTS
+%% ========================================================================
+\paragraph{Acknowledgments.}
+Computational resources were provided by the Vanderbilt ACCRE cluster
+through the Meiler Laboratory, Department of Chemistry, Vanderbilt
+University.
 
 %% ========================================================================
 %% REFERENCES
@@ -888,10 +896,5 @@ Towards robust blind face restoration with codebook lookup transformer.
 In: NeurIPS (2022)
 
 \end{thebibliography}
-
-\paragraph{Acknowledgments.}
-Computational resources were provided by the Vanderbilt ACCRE cluster
-through the Meiler Laboratory, Department of Chemistry, Vanderbilt
-University.
 
 \end{document}
