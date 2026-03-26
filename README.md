@@ -166,7 +166,7 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 <div align="center">
 <img src="assets/rhinoplasty_result.png" width="700">
 
-*Sculpted bridge with defined tip. Depth modification flattens the dorsal hump; TPS pre-warp thins the bridge. ArcFace: 0.915.*
+*Bridge straightening, tip refinement, nostril reshaping. Depth-guided bridge linearization + symmetry correction TPS. ArcFace: 0.915.*
 </div>
 
 ### Blepharoplasty
@@ -182,8 +182,31 @@ No task-specific training is required. The pretrained depth ControlNet generaliz
 <div align="center">
 <img src="assets/rhytidectomy_result.png" width="700">
 
-*Neck tightening and jawline definition. The upper face is pixel-identical to the input. ArcFace: 0.982.*
+*Two-pass neck tightening and jawline definition. The upper face is pixel-identical to the input. ArcFace: 0.982.*
 </div>
+
+---
+
+## Full Pipeline vs Live Demo
+
+The [live demo](https://huggingface.co/spaces/dreamlessx/envisage) runs a simplified pipeline due to GPU constraints. The full pipeline (this repository) includes additional components that produce higher-quality results.
+
+<div align="center">
+
+| Feature | Full Pipeline | Live Demo |
+|:--------|:---:|:---:|
+| FLUX.1-dev inpainting | Yes | Yes |
+| Depth ControlNet conditioning | Yes | No |
+| Rhinoplasty depth module (bridge straightening + nostril reshaping) | Yes | No |
+| TPS pre-warp (bridge straightening, symmetry correction, eyelid lift) | Yes | No |
+| Adaptive depth modification (Depth Anything V2) | Yes | No |
+| Multi-seed sweep with ArcFace identity gate | Yes (3 seeds) | Single seed |
+| Two-pass rhytidectomy (neck + jawline) | Yes | Single pass |
+| Procedure-adaptive mask dilation | Yes | Fixed |
+
+</div>
+
+The full pipeline achieves 0.871 overall ArcFace on the HDA test set. The demo provides a preview of the approach but does not reflect the full system's quality. For research-grade results, run the full pipeline locally on a GPU with 24GB+ VRAM.
 
 ---
 
@@ -270,7 +293,7 @@ Evaluated on the [HDA Plastic Surgery Face Database](https://doi.org/10.1109/CVP
 
 N reflects pairs where ArcFace detected a face in both prediction and ground truth (36/51 blepharoplasty, 16/34 rhinoplasty, 13/19 rhytidectomy; 65 of 104 total test pairs). LPIPS and SSIM are computed on all 104 pairs.
 
-**Per-procedure notes.** Blepharoplasty uses a small adaptive per-eye mask and low inpainting strength (0.40), giving high identity scores because most of the face is untouched. Rhytidectomy uses a two-pass approach: neck inpainting at strength 0.65, then a thin jawline transition strip, with TPS pre-warp to tighten jowls and neck. The higher variance (+/- 0.107) reflects the difficulty of preserving identity when regenerating the jawline-to-neck region. Rhinoplasty uses TPS bridge thinning + depth hump reduction + nose-region inpainting at strength 0.75.
+**Per-procedure notes.** Blepharoplasty uses a small adaptive per-eye mask and low inpainting strength (0.40), giving high identity scores because most of the face is untouched. Rhytidectomy uses a two-pass approach: neck inpainting at strength 0.65, then a thin jawline transition strip, with TPS pre-warp to tighten jowls and neck. The higher variance (+/- 0.107) reflects the difficulty of preserving identity when regenerating the jawline-to-neck region. Rhinoplasty uses a dedicated depth modification module (bridge straightening via dorsal ridge linearization + nostril reshaping with symmetry correction and alar rim sculpting), bridge-centering TPS, and a perfection-targeted prompt at strength 0.65.
 
 ### Comparison with LandmarkDiff
 
