@@ -326,10 +326,15 @@ hump flattening), while TPS pre-warping handles lateral geometric
 changes (bridge thinning, tip refinement); the combination addresses
 both dimensions of rhinoplasty.
 
-For rhytidectomy, the adaptive jaw contour mask is inpainted in a
-single pass at strength 0.65. The mask follows the MediaPipe jaw
-contour (36 landmarks) and extends to the lower image boundary,
-covering the neck and jawline region uniformly.
+For rhytidectomy, a broad Gaussian centered on the chin
+(landmark~152, $\sigma_x = 0.4 \times \text{jaw\_width}$,
+$\sigma_y = 0.10 \times H$) reduces submental depth, simulating
+tissue redistribution along the jawline and neck. TPS pre-warping is
+not applied for this procedure; the depth modification and adaptive
+jaw contour mask alone produce the geometric change. The mask follows
+the MediaPipe jaw contour (36 landmarks) and extends to the lower
+image boundary, covering the neck and jawline region. A single
+inpainting pass at strength 0.65 regenerates this region.
 
 \subsection{Diffusion Inpainting}
 
