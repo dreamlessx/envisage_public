@@ -33,7 +33,7 @@
 {\LARGE\bfseries \method{}: Supplementary Material}
 
 \vspace{12pt}
-{\large Anonymous Authors}
+{\large Mudit Agarwal, University of Washington}
 \end{center}
 \vspace{16pt}
 \end{@twocolumnfalse}
@@ -51,9 +51,9 @@ inpainting, while the modified depth map serves as the ControlNet
 conditioning signal that guides the geometry of the generated region.
 
 For rhinoplasty, the mask covers a narrow strip along the nasal dorsum
-and tip (approximately 3.4\% of the face area). The depth modification
+and tip (approximately 4.0\% of the face area). The depth modification
 reduces the dorsal hump and narrows the bridge. For blepharoplasty,
-bilateral masks cover the upper eyelid creases (approximately 5.0\% of
+bilateral masks cover the upper eyelid creases (approximately 4.3\% of
 the face area), and the depth field lifts the crease to simulate tissue
 removal. For rhytidectomy, a zoned mask covers the neck and jawline transition
 region, and the depth modification tightens the jaw contour and smooths
@@ -63,59 +63,51 @@ the neck.
 \centering
 \includegraphics[width=\textwidth]{figures/figS1_conditioning.png}
 \caption{Pipeline visualization for each procedure. Columns from left
-to right: pre-operative input, surgical mask overlay (red), \method{}
-prediction, and post-operative ground truth. Top: rhinoplasty (nose
-dorsum and tip). Middle: blepharoplasty (bilateral upper eyelids).
-Bottom: rhytidectomy (jawline and neck). The mask defines which pixels
-the diffusion model may modify; everything outside is copied from the
-input.}
+to right: pre-operative input, surgical mask overlay, \method{}
+prediction, and post-operative ground truth. Top: rhinoplasty
+(Nose\_07, teal mask). Middle: blepharoplasty (Eyelid\_98, purple
+mask). Bottom: rhytidectomy (Facelift\_33, coral mask). The mask
+defines which pixels the diffusion model may modify; everything
+outside is copied from the input.}
 \label{fig:conditioning}
 \end{figure*}
 
-\section{Intensity Sweep}
+\section{Zero-Shot vs.\ Trained Comparison}
 
-Figure~\ref{fig:intensity_sweep} shows the effect of the intensity
-parameter $\alpha$ on rhinoplasty predictions for a single subject
-(Nose\_27, seed 5555), matching the subject and seed used in Fig.~2 of
-the main paper. The intensity parameter scales the magnitude of the
-depth modification Gaussians linearly: at $\alpha = 0\%$ the depth map
-is unmodified (identity transformation), while at $\alpha = 100\%$ the
-full displacement is applied.
-
-Low intensities ($\alpha = 20$ to $30\%$) produce subtle bridge
-narrowing that may be difficult to distinguish from the input. The
-default evaluation intensity ($\alpha = 50\%$) produces moderate dorsal
-hump reduction and tip refinement. High intensities ($\alpha = 80$ to $100\%$)
-produce pronounced changes with visible narrowing and tip rotation.
-Identity preservation (ArcFace) decreases monotonically with intensity,
-from 0.98 at $\alpha = 10\%$ to 0.65 at $\alpha = 100\%$ for this
-subject.
+Figure~\ref{fig:intensity_sweep} compares the zero-shot pipeline against
+three FLUX-based trained approaches on the same test subjects. ICEdit
+(FLUX.1-Fill-dev with pretrained MoE LoRA), Kontext (FLUX.1-Kontext-dev
+with procedure-specific LoRA, 500 steps), and Fill-dev (FLUX.1-Fill-dev
+with mask-aware LoRA, 500 steps) were each trained on the HDA training
+set. All three trained approaches produce substantially degraded outputs:
+ICEdit and Kontext generate noise or unrecognizable faces, while Fill-dev
+produces blurred results. The root cause is that Kontext and ICEdit
+regenerate the entire output image (destroying non-surgical pixels),
+while Fill-dev's 500 training steps on 79 to 207 pairs per procedure is
+insufficient for a 12B-parameter model. These results validate the
+zero-shot inpainting approach.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/figS2_intensity_sweep.png}
-\caption{Intensity sweep for rhinoplasty (subject Nose\_27, seed 5555,
-$\alpha$ from 0\% to 100\% in 10\% increments). The depth modification
-Gaussians scale linearly with $\alpha$. Top row: modified depth map
-conditioning. Bottom row: inpainted output. We use $\alpha = 50\%$ for
-evaluation.}
+\caption{Zero-shot vs.\ trained comparison for rhinoplasty (top) and
+blepharoplasty (bottom). The zero-shot pipeline (column 2) produces
+coherent predictions while all three trained approaches (columns 3--5)
+fail to generate recognizable faces, validating the zero-shot inpainting
+approach over end-to-end training on limited surgical data.}
 \label{fig:intensity_sweep}
 \end{figure*}
 
 \section{Metrics Distribution}
 
 Figure~\ref{fig:metrics_dist} shows the per-sample distribution of
-ArcFace, LPIPS, and SSIM across all 65 test samples, stratified by
+LPIPS, SSIM, and DISTS across all 104 test samples, stratified by
 procedure type.
 
-Blepharoplasty (N=36) shows the tightest distribution, with ArcFace
-scores clustered between 0.92 and 0.99. This is expected given the
-small mask area (approximately 5\% of the face). Rhinoplasty (N=16)
-shows moderate variance, with ArcFace ranging from 0.55 to 0.90.
-Rhytidectomy (N=13) produces the widest spread, with ArcFace ranging
-from 0.60 to 0.95, reflecting the difficulty of preserving identity
-when nearly half the face is regenerated. The overall mean ArcFace
-(0.871) is indicated by a dashed vertical line.
+Blepharoplasty (N=51) shows moderate LPIPS variance. Rhinoplasty (N=34)
+shows the tightest LPIPS distribution, reflecting the small mask area.
+Rhytidectomy (N=19) shows the highest LPIPS values, consistent with the
+larger mask area requiring more extensive regeneration.
 
 \begin{figure*}[t]
 \centering
@@ -320,9 +312,9 @@ corresponding ArcFace scores per procedure on the v3 test set.}
 \toprule
 \textbf{Procedure} & \textbf{N} & \textbf{Mask (\%)} & \textbf{ArcFace} $\uparrow$ \\
 \midrule
-Rhinoplasty     & 16 & $\sim$3.4  & 0.725 \\
-Blepharoplasty  & 36 & $\sim$5.0  & 0.958 \\
-Rhytidectomy    & 13 &            & 0.811 \\
+Rhinoplasty     & 16 & $\sim$4.0  & 0.725 \\
+Blepharoplasty  & 36 & $\sim$4.3  & 0.958 \\
+Rhytidectomy    & 13 & $\sim$11.4 & 0.811 \\
 \midrule
 Overall         & 65 &            & 0.871 \\
 \bottomrule
@@ -494,8 +486,6 @@ The v3 evaluation uses a subset of 65 test pairs (16 rhinoplasty, 36
 blepharoplasty, 13 rhytidectomy) after excluding samples with missing
 landmarks, extreme poses, or corrupt depth maps.
 
-\section{Failure Cases}
-
 Figure~\ref{fig:failures} shows the worst-performing test case for each
 procedure, selected by lowest SSIM to the ground-truth post-operative image.
 Rhytidectomy failures show identity drift when the jawline mask encroaches
@@ -517,39 +507,38 @@ LPIPS for each prediction.}
 
 \section{Monk Skin Tone Visualization}
 
-Figure~\ref{fig:skin_tone} shows blepharoplasty predictions across the
-five Monk Skin Tone (MST) categories present in the HDA test set
-(MST~3, 5, 6, 7, 8). Predictions appear qualitatively consistent across
-skin tones, though the limited sample size in tails (N=1 to 4 for MST~3,
-7, 8) prevents strong conclusions about equitable performance.
+Figure~\ref{fig:skin_tone} shows rhinoplasty predictions across the
+Monk Skin Tone (MST) categories present in the HDA test set
+(MST~5, 6, and 9). Predictions appear qualitatively consistent across
+skin tones, though the limited sample size prevents strong conclusions
+about equitable performance.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/figS5_skin_tone.png}
-\caption{Blepharoplasty across Monk Skin Tone categories. Top row: input.
-Bottom row: prediction. MST ranges from 3 (Light-Medium) to 8 (Dark).
-Predictions maintain consistent quality across represented tones.}
+\caption{Rhinoplasty predictions across Monk Skin Tone categories
+(MST~5, 6, 9). Each row shows input (left) and prediction (right) at
+the same pipeline parameters.}
 \label{fig:skin_tone}
 \end{figure*}
 
-\section{Mask Size Comparison}
+\section{Seed Variation}
 
-Figure~\ref{fig:mask_size} visualizes the surgical mask for each procedure
-overlaid on the same input face. Blepharoplasty masks cover approximately
-3.5\% of the face (upper eyelid folds only). Rhinoplasty covers
-approximately 5.5\% (nasal dorsum, tip, and wings). Rhytidectomy covers
-the jawline and neck region (approximately 35\%). This difference in mask
-coverage directly explains the per-procedure ArcFace variation: smaller
-masks preserve more of the original face, yielding higher identity scores.
+Figure~\ref{fig:seed_variation} shows predictions from five different
+random seeds for the same rhinoplasty subject (Nose\_27) at identical
+pipeline parameters. The visual differences between seeds are subtle but
+measurable: ArcFace scores vary by 1 to 3 percentage points across
+seeds. The 3-seed sweep selects the output with the highest ArcFace
+similarity to the input, providing a modest but consistent improvement
+in identity preservation without additional training.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.9\textwidth]{figures/figS6_mask_comparison.png}
-\caption{Mask coverage comparison across procedures. Red overlay indicates
-the inpainting mask (pixels the diffusion model may modify). Everything
-outside the mask is copied from the input. Smaller masks yield higher
-ArcFace because more of the original face is preserved.}
-\label{fig:mask_size}
+\includegraphics[width=\textwidth]{figures/figS6_seed_variation.png}
+\caption{Seed variation for rhinoplasty (Nose\_27). Five different random
+seeds produce visually similar but measurably different predictions. The
+green border indicates the seed selected by the ArcFace identity gate.}
+\label{fig:seed_variation}
 \end{figure*}
 
 \end{document}
