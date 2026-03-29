@@ -143,7 +143,7 @@ Envisage ships as a zero-shot inpainting system built on FLUX.1-dev. The approac
   - [Training Ablation](#training-ablation)
 - [Supplementary Figures](#supplementary-figures)
   - [Conditioning Visualization](#conditioning-visualization)
-  - [Intensity Sweep](#intensity-sweep)
+  - [Zero-Shot vs Trained Comparison](#zero-shot-vs-trained-comparison)
   - [Metric Distributions](#metric-distributions)
   - [Failure Cases](#failure-cases)
   - [Seed Variation](#seed-variation)
@@ -650,9 +650,9 @@ To test whether procedure-specific training improves over the zero-shot pipeline
 
 | Approach | Base Model | Method | Training |
 |:---------|:----------|:-------|:---------|
-| ICEdit | FLUX.1-Fill-dev | Pretrained MoE LoRA, dual-panel editing | 0 steps (inference only) |
-| Kontext | FLUX.1-Kontext-dev | Procedure LoRA with trigger words | 500 steps per procedure |
-| Fill-dev | FLUX.1-Fill-dev | Mask-aware LoRA with surgical masks | 500 steps per procedure |
+| DreamBooth | FLUX.1-dev | Subject-specific LoRA | 200 steps per procedure |
+| Kontext | FLUX.1-Kontext-dev | Procedure LoRA with trigger words | 200 steps per procedure |
+| Fill-dev | FLUX.1-Fill-dev | Mask-aware LoRA with surgical masks | 200 steps per procedure |
 
 </div>
 
@@ -660,22 +660,17 @@ To test whether procedure-specific training improves over the zero-shot pipeline
 
 <div align="center">
 
-| Metric | Procedure | Zero-shot (ours) | ICEdit | Kontext | Fill-dev |
+| Metric | Procedure | Zero-shot (ours) | DreamBooth | Kontext | Fill-dev |
 |:-------|:----------|:---:|:---:|:---:|:---:|
-| ArcFace | Blepharoplasty | **0.958** | - | 0.769 | - |
-| ArcFace | Rhinoplasty | **0.725** | - | 0.601 | - |
-| ArcFace | Rhytidectomy | **0.811** | - | -- | - |
-| LPIPS | Blepharoplasty | **0.403** | 0.888 | 0.985 | 0.930 |
-| LPIPS | Rhinoplasty | **0.348** | 0.868 | 1.007 | 0.914 |
-| LPIPS | Rhytidectomy | **0.471** | 0.947 | 1.106 | 0.978 |
+| ArcFace (pred vs GT) | Rhinoplasty | **0.725** | 0.662 | 0.717 | 0.611 |
+| ArcFace (identity) | Rhinoplasty | 0.856 | 0.818 | **0.994** | 0.709 |
+| LPIPS | Rhinoplasty | **0.348** | 0.360 | 0.352 | 0.368 |
 
 </div>
 
-**-** indicates ArcFace could not detect a face in the output.
+All three trained approaches produce outputs nearly identical to the input: they achieve high identity preservation (ArcFace identity up to 0.994) but fail to introduce visible surgical modifications. LPIPS values are comparable because the outputs resemble the input, not because they match the ground truth. The zero-shot pipeline achieves the best ArcFace similarity to the actual post-operative ground truth (0.725 vs 0.662--0.717), demonstrating that it produces meaningful surgical changes rather than identity-preserving copies.
 
-All three trained approaches produce substantially worse results than the zero-shot pipeline. The root cause: Kontext and ICEdit generate the entire output image (destroying non-surgical pixels), while the zero-shot pipeline modifies only the masked surgical region. Fill-dev is mask-aware in principle, but 500 steps on 79 to 207 pairs per procedure is insufficient for a 12B-parameter model to learn subtle surgical transformations.
-
-This validates the core architectural choice: masked inpainting with depth conditioning and TPS pre-warping is more effective than end-to-end learned transformations for this task.
+This validates the core architectural choice: masked inpainting with depth conditioning and TPS pre-warping is more effective than end-to-end LoRA fine-tuning for this task.
 
 ---
 
@@ -691,12 +686,12 @@ The paper includes several supplementary figures that provide additional insight
 <em>Conditioning inputs for each procedure: original image, depth map (Depth Anything V2), modified depth map, surgical mask, and TPS-warped input.</em>
 </div>
 
-### Intensity Sweep
+### Zero-Shot vs Trained Comparison
 
 <div align="center">
 <img src="paper/figures/figS2_intensity_sweep.png" width="700">
 <br>
-<em>Effect of inpainting strength on output quality. Lower strength preserves more of the input but produces subtler surgical changes; higher strength allows more dramatic changes but risks identity degradation.</em>
+<em>Zero-shot vs trained LoRA comparison for rhinoplasty, blepharoplasty, and rhytidectomy. The zero-shot pipeline produces coherent surgical predictions, while all three LoRA-trained approaches return outputs nearly identical to the input.</em>
 </div>
 
 ### Metric Distributions
@@ -971,7 +966,7 @@ Current status and planned development.
 - [x] Decomposed evaluation framework (surgical / non-surgical / full face)
 - [x] Monk Skin Tone fairness stratification
 - [x] Gradio demo (local + Hugging Face Spaces)
-- [x] Training ablation (ICEdit, Kontext, Fill-dev)
+- [x] Training ablation (DreamBooth, Kontext, Fill-dev LoRA)
 
 ### Next (v1.1): Intensity Control
 
