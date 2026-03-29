@@ -75,26 +75,28 @@ outside is copied from the input.}
 \section{Zero-Shot vs.\ Trained Comparison}
 
 Figure~\ref{fig:intensity_sweep} compares the zero-shot pipeline against
-three FLUX-based trained approaches on the same test subjects. ICEdit
-(FLUX.1-Fill-dev with pretrained MoE LoRA), Kontext (FLUX.1-Kontext-dev
-with procedure-specific LoRA, 500 steps), and Fill-dev (FLUX.1-Fill-dev
-with mask-aware LoRA, 500 steps) were each trained on the HDA training
-set. All three trained approaches produce substantially degraded outputs:
-ICEdit and Kontext generate noise or unrecognizable faces, while Fill-dev
-produces blurred results. The root cause is that Kontext and ICEdit
-regenerate the entire output image (destroying non-surgical pixels),
-while Fill-dev's 500 training steps on 79 to 207 pairs per procedure is
-insufficient for a 12B-parameter model. These results validate the
-zero-shot inpainting approach.
+three FLUX-based trained approaches on the same test subjects. DreamBooth
+(FLUX.1-dev with subject-specific LoRA, 200 steps), Kontext
+(FLUX.1-Kontext-dev with procedure-specific LoRA, 200 steps), and
+Fill-dev (FLUX.1-Fill-dev with mask-aware LoRA, 200 steps) were each
+fine-tuned on the HDA training set. All three trained approaches produce
+outputs that are nearly identical to the pre-operative input: they
+preserve identity but fail to introduce visible surgical modifications.
+The root cause is insufficient training data---79 to 207 pairs per
+procedure cannot teach a 12B-parameter model the mapping from pre- to
+post-operative appearance. These results validate the zero-shot
+inpainting approach, which produces visible, anatomically guided changes
+without any surgical training data.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/figS2_intensity_sweep.png}
-\caption{Zero-shot vs.\ trained comparison for rhinoplasty (top) and
-blepharoplasty (bottom). The zero-shot pipeline (column 2) produces
-coherent predictions while all three trained approaches (columns 3--5)
-fail to generate recognizable faces, validating the zero-shot inpainting
-approach over end-to-end training on limited surgical data.}
+\caption{Zero-shot vs.\ trained comparison for rhinoplasty (top),
+blepharoplasty (middle), and rhytidectomy (bottom). The zero-shot
+pipeline (column~2) produces coherent surgical predictions, while all
+three LoRA-trained approaches (columns~3--5) return outputs nearly
+identical to the input, failing to generate meaningful surgical changes
+despite preserving identity.}
 \label{fig:intensity_sweep}
 \end{figure*}
 
