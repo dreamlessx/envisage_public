@@ -10,7 +10,6 @@ Supported modifications:
   - rhinoplasty: dorsal hump reduction (flatten nasal bridge depth)
   - blepharoplasty: lid region depth smoothing
   - orthognathic: jaw projection depth change
-  - rhytidectomy: jaw contour tightening
 """
 
 from __future__ import annotations
@@ -55,7 +54,7 @@ PROCEDURE_DEPTH_CONFIGS: dict[str, DepthModConfig] = {
     "rhinoplasty": DepthModConfig(
         sigma_x_frac=0.06,
         sigma_y_frac=0.08,
-        intensity=40.0,
+        intensity=100.0,  # v11 (2026-04-18): 75 -> 100, final push for Nose_33
         center_landmark=6,  # nasion
     ),
     "blepharoplasty": DepthModConfig(
@@ -182,9 +181,13 @@ def modify_depth(
         ))
 
     if procedure == "rhinoplasty" and landmarks is not None:
+        from .landmarks import measure_nasal_symmetry
         nose = measure_nose(landmarks)
+        sym = measure_nasal_symmetry(landmarks)
         nose_w = nose["width"]
         nose_h = nose["height"]
+        bwr = sym.get("bridge_width_ratio", 1.0)
+        tip_bulbosity = sym.get("tip_bulbosity", 0.0)
 
         # Measure depth range within the nose region to scale intensity
         nose_cx = int(nose["center_x"])
@@ -194,8 +197,23 @@ def modify_depth(
         x1, x2 = max(0, nose_cx - r), min(w, nose_cx + r)
         nose_depth_patch = depth[y1:y2, x1:x2]
         nose_depth_range = float(nose_depth_patch.max() - nose_depth_patch.min()) if nose_depth_patch.size > 0 else 40.0
-        # Intensity proportional to depth range; a flat nose needs less modification
-        adaptive_intensity = config.intensity * (nose_depth_range / 40.0) * scale
+        # v7 (2026-04-18): floor the adaptive scaling at 0.8x so soft/low-
+        # contrast input faces (Nose_33 class) still get meaningful depth
+        # modification instead of being penalized for lacking local depth
+        # range. Prior formula let soft faces get only 40% of nominal -- too
+        # weak to cut through FLUX's prior.
+        scale_factor = max(nose_depth_range / 40.0, 0.8)
+        adaptive_intensity = config.intensity * scale_factor * scale
+
+        # v9 (2026-04-18): depth-level bridge widening restored with TIGHT
+        # gating + HALVED magnitudes vs v6. v6 used 0.30 center + 0.80 sides
+        # which saturated and caused the Nose_30 blob. v9 uses 0.12 / 0.30
+        # and triggers only when geometric/clinical bulbosity signals are
+        # strong. Prompt-level widening alone (v7/v8) wasn't visible because
+        # the ControlNet depth narrowing overrides prompt intent.
+        # Note: dorsal_narrowing-active cases on bulbous tips fire this too
+        # (Nose_27 class) per Mudit rule "widen bridge when tip ends up
+        # bulbous."
 
         # 1. Dorsal hump reduction (Gaussian sigma scaled to nose dimensions)
         nasion_x = nose_cx
@@ -203,7 +221,20 @@ def modify_depth(
         bridge_sx = nose_w * 0.5  # half nose width
         bridge_sy = nose_h * 0.6  # most of the bridge
         bridge_g = _gaussian(nasion_x, nasion_y, bridge_sx, bridge_sy)
-        modified -= bridge_g * adaptive_intensity
+
+        # Widen trigger: when this fires, we SUBTRACT LESS at the bridge
+        # rather than adding depth. v6/v9 learned that any positive depth
+        # addition at the bridge saturates ControlNet at cn_scale=0.85
+        # (visible tan/orange blob). v10 approach: half-narrowing when
+        # widening is desired -- relatively wider effect vs the default
+        # narrowing without the saturation artifact.
+        need_widen_depth = (
+            (bwr < 0.95)
+            or (tip_bulbosity > 0.55)
+            or (bwr > 1.05 and tip_bulbosity > 0.42)
+        )
+        bridge_narrow_factor = 0.50 if need_widen_depth else 1.00
+        modified -= bridge_g * adaptive_intensity * bridge_narrow_factor
 
         # 2. Bridge side-contrast: placed at 30% of nose width from center
         side_offset = nose_w * 0.30
@@ -212,16 +243,46 @@ def modify_depth(
         for sign in [-1, 1]:
             sx_pos = nasion_x + sign * side_offset
             side_g = _gaussian(sx_pos, nasion_y, side_sx, side_sy)
+            # Side contrast always at 0.5 (unchanged from pre-v6). Pure
+            # positive depth here too would saturate; the side adds are
+            # kept small enough that we've never seen them misbehave.
             modified += side_g * adaptive_intensity * 0.5
 
-        # 3. Tip refinement (scaled to tip area)
+        # 3. Tip refinement (scaled to tip area).
+        # Mudit audit 2026-04-18: 8/10 rhino cases flagged bulbous tips.
+        # Narrower sigma + higher amplitude makes the tip sculpt more assertive
+        # without widening the footprint (which would bleed into nostrils and
+        # trigger the dark-hole artifact seen on Nose_27).
         if 1 < len(landmarks.points):
             tx = int(landmarks.points[1][0])
-            ty = int(landmarks.points[1][1])
-            tip_sx = nose_w * 0.25
-            tip_sy = nose_h * 0.15
+            # Pull the depth-mod center up by 12% of nose height so the
+            # Gaussian sits on the supratip / tip-defining points, not the
+            # columella. This prevents the nostril-darkening failure.
+            ty = int(landmarks.points[1][1] - nose_h * 0.12)
+            # v4 (2026-04-18): tighter sigma + stronger amplitude to hit the
+            # apex harder without spreading into the nostril region.
+            # Mudit iter-#46 v3 audit: "apex sticks out too much, tip far
+            # less bulbous" -> need MORE subtraction at tip center, LESS
+            # spread. Sigma 0.18/0.10 -> 0.13/0.07. Amplitude 0.55 -> 0.70.
+            # v8 (2026-04-18): wider tip sigma (0.13/0.07 -> 0.17/0.09) so
+            # FLUX sees a clearer "flat tip" signal on low-contrast faces
+            # (Nose_33). Narrow sigma was producing a subtle dent that FLUX
+            # could absorb without rendering the change.
+            tip_sx = nose_w * 0.17
+            tip_sy = nose_h * 0.09
             tip_g = _gaussian(tx, ty, tip_sx, tip_sy)
-            modified -= tip_g * adaptive_intensity * 0.4
+            # v9: 1.00 -> 1.15. Nose_33 persistently passthrough despite
+            # every lever -- bump tip amp past unity for more aggressive
+            # sculpt on low-contrast / severe cases. Nose_30 is protected
+            # by strength=0.70 override elsewhere so won't over-edit.
+            modified -= tip_g * adaptive_intensity * 1.15
+
+            tx2 = int(landmarks.points[1][0])
+            ty2 = int(landmarks.points[1][1])
+            apex_sx = nose_w * 0.09
+            apex_sy = nose_h * 0.06
+            apex_g = _gaussian(tx2, ty2, apex_sx, apex_sy)
+            modified -= apex_g * adaptive_intensity * 0.80
 
         log.info(
             "Depth modified for rhinoplasty (adaptive): nose_w=%.0f nose_h=%.0f "
@@ -231,23 +292,41 @@ def modify_depth(
 
     elif procedure == "blepharoplasty" and landmarks is not None:
         hooding = measure_eyelid_hooding(landmarks)
+        pts = landmarks.points
 
-        # Per-eye Gaussian, scaled by crease-to-brow distance
-        for lid_idx, brow_key in [(159, "left_crease_to_brow"), (386, "right_crease_to_brow")]:
-            if lid_idx >= len(landmarks.points):
+        # Per-eye: broad lift + sharp crease line
+        for side, lid_idx, brow_idx, inner_idx, outer_idx, brow_key in [
+            ("left",  159, 105, 133, 33, "left_crease_to_brow"),
+            ("right", 386, 334, 362, 263, "right_crease_to_brow"),
+        ]:
+            if lid_idx >= len(pts):
                 continue
-            lx = int(landmarks.points[lid_idx][0])
-            ly = int(landmarks.points[lid_idx][1])
+            lx = int(pts[lid_idx][0])
+            ly = int(pts[lid_idx][1])
             crease_dist = hooding[brow_key]
 
-            # Sigma proportional to eyelid dimensions
+            # 1. Broad lift above the lid (existing)
             lid_sx = crease_dist * 1.5
             lid_sy = crease_dist * 0.4
             lid_g = _gaussian(lx, ly - int(crease_dist * 0.3), lid_sx, lid_sy)
             modified -= lid_g * config.intensity * 0.5 * scale
 
+            # 2. Sharp crease line: thin Gaussian groove at target crease height
+            # Target crease: 8-10mm above lash line (approximated as 40% of crease-to-brow distance)
+            crease_y = ly - int(crease_dist * 0.4)
+            # Draw crease as a thin horizontal line with narrow vertical sigma
+            inner_x = int(pts[inner_idx][0])
+            outer_x = int(pts[outer_idx][0])
+            eye_width = abs(outer_x - inner_x)
+            crease_cx = (inner_x + outer_x) // 2
+            crease_sx = eye_width * 0.4  # horizontal extent matches eye width
+            crease_sy = 1.5  # very thin vertically — creates sharp fold
+            crease_g = _gaussian(crease_cx, crease_y, crease_sx, crease_sy)
+            modified -= crease_g * config.intensity * 1.2 * scale  # strong groove
+
         log.info(
-            "Depth modified for blepharoplasty (adaptive): L_hood=%.2f R_hood=%.2f",
+            "Depth modified for blepharoplasty (adaptive + crease line): "
+            "L_hood=%.2f R_hood=%.2f",
             hooding["left_hooding"], hooding["right_hooding"],
         )
 
@@ -327,7 +406,7 @@ def load_config_from_yaml(yaml_path: str | Path, procedure: str) -> DepthModConf
     """
     import yaml
 
-    with open(yaml_path) as f:
+    with open(yaml_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     depth_cfg = data.get("depth_modification", {}).get(procedure, {})

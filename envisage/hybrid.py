@@ -14,6 +14,7 @@ Each stage handles what it does best:
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 
 import cv2
@@ -32,29 +33,50 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class RhinoplastyWarpParams:
-    """TPS warp parameters for rhinoplasty.
+    """TPS warp parameters for rhinoplasty (v4).
 
-    Two groups of landmarks are displaced inward (horizontally only):
-      1. Bridge sidewall landmarks: thins the nasal bridge
-      2. Nostril edge landmarks: narrows the nostrils/alae
-    No vertical displacement. The nose keeps its length and projection.
+    Four groups of landmarks are displaced:
+      1. Bridge sidewall: thins the nasal bridge (horizontal)
+      2. Tip lobule: narrows the tip (horizontal)
+      3. Tip center: subtle upward rotation (vertical)
+      4. Alar base: narrows nostrils (horizontal)
+    All displacements scale with measured nose width.
     """
 
-    # Bridge sidewall landmarks (left side / right side)
+    # Bridge sidewall landmarks
     left_bridge_indices: list[int] = None
     right_bridge_indices: list[int] = None
-    bridge_inward_px: float = 3.5
+    bridge_inward_px: float = 1.0  # minimal — hump removal widens the bridge
 
-    # Nostril edge landmarks
-    left_nostril_index: int = 48
-    right_nostril_index: int = 278
-    nostril_inward_px: float = 5.0
+    # Tip lobule landmarks
+    left_tip_indices: list[int] = None
+    right_tip_indices: list[int] = None
+    tip_narrow_px: float = 2.5  # moderate tip narrowing — avoid indent artifacts
+
+    # Tip center (upward rotation)
+    tip_center_indices: list[int] = None
+    tip_up_px: float = 1.0  # minimal rotation — avoid over-angling
+
+    # Alar base landmarks
+    left_alar_indices: list[int] = None
+    right_alar_indices: list[int] = None
+    alar_narrow_px: float = 1.0  # minimal — only for truly wide alae
 
     def __post_init__(self):
         if self.left_bridge_indices is None:
-            self.left_bridge_indices = [193, 245, 188, 174, 217]
+            self.left_bridge_indices = [193, 245, 188, 174, 217, 126, 142]
         if self.right_bridge_indices is None:
-            self.right_bridge_indices = [437, 399, 465, 412, 351]
+            self.right_bridge_indices = [437, 399, 465, 412, 351, 355, 371]
+        if self.left_tip_indices is None:
+            self.left_tip_indices = [94, 141, 238]
+        if self.right_tip_indices is None:
+            self.right_tip_indices = [326, 370, 458]
+        if self.tip_center_indices is None:
+            self.tip_center_indices = [1, 2]
+        if self.left_alar_indices is None:
+            self.left_alar_indices = [48, 64, 98, 97, 209]
+        if self.right_alar_indices is None:
+            self.right_alar_indices = [278, 294, 327, 326, 429]
 
 
 @dataclass
@@ -62,7 +84,7 @@ class BlepharoplastyWarpParams:
     """TPS warp parameters for blepharoplasty."""
 
     # How much to lift upper eyelid crease (pixels)
-    lid_lift_px: float = 2.5
+    lid_lift_px: float = 5.0  # aggressive lift to expose tarsal platform
 
 
 def compute_tps_warp(
@@ -157,11 +179,13 @@ def rhinoplasty_tps_warp(
     landmarks: FaceLandmarks,
     params: RhinoplastyWarpParams | None = None,
 ) -> np.ndarray:
-    """Apply TPS warp for rhinoplasty: thin bridge, narrow nostrils.
+    """Apply TPS warp for rhinoplasty (v4).
 
-    Horizontal-only displacement. No vertical compression. The nose
-    keeps its length and tip projection. The result is a thinner, more
-    refined nose, not a smaller one.
+    Four displacement groups, all adaptive to measured nose width:
+      1. Bridge sidewalls move inward (horizontal)
+      2. Tip lobule narrows (horizontal)
+      3. Tip center rotates upward (vertical)
+      4. Alar base narrows (horizontal)
 
     Args:
         image: BGR input image.
@@ -171,49 +195,104 @@ def rhinoplasty_tps_warp(
     Returns:
         TPS-warped BGR image.
     """
+    from .landmarks import measure_nose
+
     if params is None:
         params = RhinoplastyWarpParams()
 
     pts = landmarks.points
     h, w = image.shape[:2]
 
-    # Nose midline x (average of dorsal landmarks)
-    midline_x = np.mean([
-        pts[i][0] for i in [1, 2, 3, 4, 5, 6]
-        if i < len(pts)
-    ])
+    # Adaptive scale: wider noses get proportionally more displacement.
+    # Bumped 2026-04-29 from cap 1.2 to cap 1.8 + ENVISAGE_RHINO_SCALE_MULT
+    # env multiplier (default 1.5x). User feedback on case 113 (lopsided
+    # but right direction) indicated more displacement is needed for the
+    # rhino TPS to produce visible refinement, especially for asymmetric
+    # bridge cases.
+    nose = measure_nose(landmarks)
+    scale_mult = float(os.environ.get("ENVISAGE_RHINO_SCALE_MULT", "1.5"))
+    scale = max(0.7, min(1.8, nose["width"] / 80.0 * scale_mult))
 
     src_list = []
     dst_list = []
 
-    # 1. Bridge thinning: sidewall landmarks move inward (x only)
+    # 0. Dorsal straightening: push bridge landmarks toward midline
+    from .landmarks import measure_nasal_symmetry, NOSE_DORSUM
+    sym = measure_nasal_symmetry(landmarks)
+    midline_x = sym["midline_x"]
+    if sym["dorsal_deviation_std"] > 1.5:
+        for idx in NOSE_DORSUM:
+            if idx >= len(pts):
+                continue
+            src_list.append(pts[idx].copy())
+            d = pts[idx].copy()
+            deviation = d[0] - midline_x
+            d[0] -= deviation * 0.5 * scale  # push 50% toward midline
+            dst_list.append(d)
+
+    # 1. Bridge thinning
+    bpx = params.bridge_inward_px * scale
     for idx in params.left_bridge_indices:
         if idx >= len(pts):
             continue
         src_list.append(pts[idx].copy())
-        displaced = pts[idx].copy()
-        displaced[0] += params.bridge_inward_px  # left side -> right
-        dst_list.append(displaced)
+        d = pts[idx].copy()
+        d[0] += bpx
+        dst_list.append(d)
 
     for idx in params.right_bridge_indices:
         if idx >= len(pts):
             continue
         src_list.append(pts[idx].copy())
-        displaced = pts[idx].copy()
-        displaced[0] -= params.bridge_inward_px  # right side -> left
-        dst_list.append(displaced)
+        d = pts[idx].copy()
+        d[0] -= bpx
+        dst_list.append(d)
 
-    # 2. Alar/nostril narrowing: nostril edges move inward (x only)
-    for idx, direction in [
-        (params.left_nostril_index, +1),   # left nostril -> right
-        (params.right_nostril_index, -1),   # right nostril -> left
-    ]:
+    # 2. Tip narrowing
+    tpx = params.tip_narrow_px * scale
+    for idx in params.left_tip_indices:
         if idx >= len(pts):
             continue
         src_list.append(pts[idx].copy())
-        displaced = pts[idx].copy()
-        displaced[0] += direction * params.nostril_inward_px
-        dst_list.append(displaced)
+        d = pts[idx].copy()
+        d[0] += tpx
+        dst_list.append(d)
+
+    for idx in params.right_tip_indices:
+        if idx >= len(pts):
+            continue
+        src_list.append(pts[idx].copy())
+        d = pts[idx].copy()
+        d[0] -= tpx
+        dst_list.append(d)
+
+    # 3. Tip rotation (upward)
+    tup = params.tip_up_px * scale
+    for idx in params.tip_center_indices:
+        if idx >= len(pts):
+            continue
+        src_list.append(pts[idx].copy())
+        d = pts[idx].copy()
+        d[1] -= tup
+        dst_list.append(d)
+
+    # 4. Alar base narrowing
+    apx = params.alar_narrow_px * scale
+    for idx in params.left_alar_indices:
+        if idx >= len(pts):
+            continue
+        src_list.append(pts[idx].copy())
+        d = pts[idx].copy()
+        d[0] += apx
+        dst_list.append(d)
+
+    for idx in params.right_alar_indices:
+        if idx >= len(pts):
+            continue
+        src_list.append(pts[idx].copy())
+        d = pts[idx].copy()
+        d[0] -= apx
+        dst_list.append(d)
 
     if not src_list:
         log.warning("No rhinoplasty warp points found")
@@ -226,8 +305,8 @@ def rhinoplasty_tps_warp(
 
     warped = compute_tps_warp(src, dst, image)
     log.info(
-        "Rhinoplasty TPS warp: %d control points, bridge_in=%.1fpx, nostril_in=%.1fpx",
-        len(src_list), params.bridge_inward_px, params.nostril_inward_px,
+        "Rhinoplasty TPS v4: %d points, bridge=%.1f tip=%.1f tip_up=%.1f alar=%.1f (scale=%.2f)",
+        len(src_list), bpx, tpx, tup, apx, scale,
     )
     return warped
 
@@ -237,33 +316,74 @@ def blepharoplasty_tps_warp(
     landmarks: FaceLandmarks,
     params: BlepharoplastyWarpParams | None = None,
 ) -> np.ndarray:
-    """Apply TPS warp for blepharoplasty: lift upper eyelid crease.
+    """Apply adaptive TPS warp for blepharoplasty.
 
-    Args:
-        image: BGR input image.
-        landmarks: 478-point face landmarks.
-        params: Warp parameters.
-
-    Returns:
-        TPS-warped BGR image.
+    Adaptive lift per eye based on hooding severity. More hooded = more lift.
+    Eye opening landmarks (iris, lash line) are anchored in place.
     """
+    from .landmarks import (
+        measure_eyelid_hooding,
+        LEFT_EYE_UPPER, LEFT_EYE_LOWER,
+        RIGHT_EYE_UPPER, RIGHT_EYE_LOWER,
+    )
+
     if params is None:
         params = BlepharoplastyWarpParams()
 
     pts = landmarks.points
     h, w = image.shape[:2]
+    hooding = measure_eyelid_hooding(landmarks)
 
     src_list = []
     dst_list = []
 
-    # Lift upper eyelid crease landmarks upward
-    for idx in LEFT_UPPER_LID_FOLD + RIGHT_UPPER_LID_FOLD:
+    # Adaptive lift: more hooded eye gets more lift. Cap raised 2026-04-30
+    # from 16 to 25 px per user feedback that case 125 needs "more open eye
+    # space" — 16 px was capping out for severely hooded lids and not
+    # producing visible eye-opening. The 25 px cap allows the upper lid
+    # landmark to move up by up to 25 px on a 512x512 face, which is
+    # ~5% of face height = realistic blepharoplasty change magnitude.
+    import os
+    lift_scale = float(os.environ.get("ENVISAGE_BLEPH_LIFT_SCALE", "1.6"))
+    lift_cap = float(os.environ.get("ENVISAGE_BLEPH_LIFT_CAP", "25.0"))
+    left_hood = hooding["left_hooding"]
+    right_hood = hooding["right_hooding"]
+    # Lower hooding ratio = more hooded = needs more lift
+    left_lift = max(8.0, min(lift_cap, params.lid_lift_px * (2.0 / max(left_hood, 0.5)) * lift_scale))
+    right_lift = max(8.0, min(lift_cap, params.lid_lift_px * (2.0 / max(right_hood, 0.5)) * lift_scale))
+
+    # Lift left upper lid fold
+    for idx in LEFT_UPPER_LID_FOLD:
         if idx >= len(pts):
             continue
         src_list.append(pts[idx].copy())
-        displaced = pts[idx].copy()
-        displaced[1] -= params.lid_lift_px  # move upward
-        dst_list.append(displaced)
+        d = pts[idx].copy()
+        d[1] -= left_lift
+        dst_list.append(d)
+
+    # Lift right upper lid fold
+    for idx in RIGHT_UPPER_LID_FOLD:
+        if idx >= len(pts):
+            continue
+        src_list.append(pts[idx].copy())
+        d = pts[idx].copy()
+        d[1] -= right_lift
+        dst_list.append(d)
+
+    # ANCHOR: eye opening landmarks (iris, lash line) — zero displacement
+    for idx_list in [LEFT_EYE_UPPER, LEFT_EYE_LOWER, RIGHT_EYE_UPPER, RIGHT_EYE_LOWER]:
+        for idx in idx_list:
+            if idx >= len(pts):
+                continue
+            src_list.append(pts[idx].copy())
+            dst_list.append(pts[idx].copy())
+
+    # ANCHOR: brow landmarks — zero displacement
+    for idx in [70, 63, 105, 66, 107, 300, 293, 334, 296, 336]:
+        if idx >= len(pts):
+            continue
+        src_list.append(pts[idx].copy())
+        dst_list.append(pts[idx].copy())
 
     if not src_list:
         log.warning("No blepharoplasty warp points found")
@@ -271,13 +391,12 @@ def blepharoplasty_tps_warp(
 
     src = np.array(src_list, dtype=np.float32)
     dst = np.array(dst_list, dtype=np.float32)
-
     src, dst = add_boundary_anchors(src, dst, w, h)
 
     warped = compute_tps_warp(src, dst, image)
     log.info(
-        "Blepharoplasty TPS warp: %d control points, lid_lift=%.1fpx",
-        len(src_list), params.lid_lift_px,
+        "Blepharoplasty TPS: L_lift=%.1f R_lift=%.1f (L_hood=%.2f R_hood=%.2f)",
+        left_lift, right_lift, left_hood, right_hood,
     )
     return warped
 

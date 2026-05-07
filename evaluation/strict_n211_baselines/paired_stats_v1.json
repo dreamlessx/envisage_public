@@ -1,0 +1,65 @@
+{
+  "source": "/data/p_csb_meiler/agarwm5/infinity/envisage/evaluation/baselines/strict_n211_all_methods.json",
+  "B_bootstrap": 10000,
+  "shared_N": 205,
+  "method_gap_mean": {
+    "envisage": -0.049621230945354554,
+    "kontext": -0.2386632814639952,
+    "ip2p": -0.2949645195837791,
+    "icedit": -0.13948858242209364
+  },
+  "method_gap_median": {
+    "envisage": -0.04651641845703125,
+    "kontext": -0.23206377029418945,
+    "ip2p": -0.14203548431396484,
+    "icedit": -0.12954181432724
+  },
+  "method_gap_ci95": {
+    "envisage": [
+      -0.056274669075884465,
+      -0.043267875480942616
+    ],
+    "icedit": [
+      -0.14873492463878016,
+      -0.13067313329657404
+    ],
+    "kontext": [
+      -0.2555026904439054,
+      -0.22195407349161986
+    ],
+    "ip2p": [
+      -0.333671282719957,
+      -0.25668931845973086
+    ]
+  },
+  "envisage_minus_baseline_mean": {
+    "icedit": 0.08986735147673909,
+    "kontext": 0.18904205051864065,
+    "ip2p": 0.24534328863842458
+  },
+  "envisage_minus_baseline_ci95": {
+    "icedit": [
+      0.07908643788317354,
+      0.10078767732330939
+    ],
+    "kontext": [
+      0.17224940118448037,
+      0.20542067734024874
+    ],
+    "ip2p": [
+      0.20711291164250636,
+      0.2850810003661119
+    ]
+  },
+  "envisage_minus_baseline_perm_p": {
+    "icedit": 0.0,
+    "kontext": 0.0,
+    "ip2p": 0.0
+  },
+  "pct_positive_gap": {
+    "envisage": 0.15609756097560976,
+    "icedit": 0.0,
+    "kontext": 0.04390243902439024,
+    "ip2p": 0.00975609756097561
+  }
+}

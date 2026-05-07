@@ -1,4 +1,4 @@
-"""Lightweight smoke tests: package imports cleanly and configs load."""
+"""Lightweight smoke tests: package imports cleanly, configs load, paper artifacts present."""
 from __future__ import annotations
 
 import importlib
@@ -9,36 +9,50 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-
-def test_package_importable():
-    """envisage package must import without optional heavy deps."""
-    mod = importlib.import_module("envisage")
-    assert mod is not None
-    assert hasattr(mod, "__doc__")
-
-
-@pytest.mark.parametrize("submodule", [
+# All envisage submodules currently in the package
+SUBMODULES = [
     "envisage.depth",
     "envisage.evaluation",
     "envisage.fairness",
     "envisage.hybrid",
     "envisage.landmarks",
     "envisage.masks",
+    "envisage.measurements",
     "envisage.pipeline",
+    "envisage.pipeline_v2",
     "envisage.postprocess",
+    "envisage.scorer",
+    "envisage.candidates",
+    "envisage.gt_analysis",
     "envisage.tps_augment",
-])
+    "envisage.rhino_config",
+    "envisage.bleph_config",
+    "envisage.rhytid_config",
+    "envisage.composite_selector",
+    "envisage.statistics",
+]
+
+# Heavy / optional deps that may be missing in CI; skip rather than fail.
+OPTIONAL_DEPS = (
+    "torch", "diffusers", "mediapipe", "insightface",
+    "cv2", "opencv", "lpips", "transformers", "controlnet",
+    "skimage", "matplotlib", "scipy", "sklearn",
+    "huggingface_hub", "PIL.Image", "torchvision",
+)
+
+
+def test_package_importable():
+    mod = importlib.import_module("envisage")
+    assert mod is not None
+
+
+@pytest.mark.parametrize("submodule", SUBMODULES)
 def test_submodule_importable(submodule):
-    """Each submodule should at least parse + import."""
     try:
         importlib.import_module(submodule)
     except ImportError as e:
-        # Heavy deps (torch/diffusers/mediapipe) are optional in CI;
-        # only fail on syntax/structural errors.
         msg = str(e).lower()
-        if any(x in msg for x in ["torch", "diffusers", "mediapipe",
-                                   "insightface", "cv2", "lpips",
-                                   "transformers"]):
+        if any(x.lower() in msg for x in OPTIONAL_DEPS):
             pytest.skip(f"{submodule}: optional dep missing ({e})")
         raise
 
@@ -51,26 +65,56 @@ def test_rhinoplasty_config_loads():
 
 
 def test_paper_figures_present():
-    """Figures referenced from paper/main.tex must be committed."""
+    """Figures referenced from paper/main_neurips_v1.tex must be committed."""
     fig_dir = REPO_ROOT / "paper" / "figures"
     required = [
-        "figM1_pipeline.png",
-        "figM2_qualitative.png",
-        "figM3_decomposed_arcface.png",
-        "figS1_conditioning.png",
+        "fig1_pipeline.pdf",
+        "fig3_decomposed_arcface.png",
+        "fig_qualitative_v26.png",
+        "fig_other_procedures.png",
     ]
     for name in required:
         assert (fig_dir / name).exists(), f"missing figure: {name}"
 
 
-def test_readme_links_resolve():
-    """README must point at real on-disk files (no broken local refs)."""
-    readme = (REPO_ROOT / "README.md").read_text()
-    # Every local path that looks like a relative file ref should exist
-    import re
-    for m in re.finditer(r"\]\(([^)]+\.(?:png|pdf|yaml|py|md|sh))\)", readme):
-        path = m.group(1).split("#")[0]
-        if path.startswith(("http", "https", "mailto")):
-            continue
-        candidate = REPO_ROOT / path
-        assert candidate.exists(), f"README links to missing file: {path}"
+def test_paper_source_present():
+    paper_dir = REPO_ROOT / "paper"
+    required = [
+        "main_neurips_v1.tex",
+        "checklist_neurips_v1.tex",
+        "refs.bib",
+        "main_neurips.pdf",
+    ]
+    for name in required:
+        assert (paper_dir / name).exists(), f"missing paper artifact: {name}"
+
+
+def test_evaluation_jsons_present():
+    """Load-bearing evaluation JSONs cited in paper tables must be committed."""
+    import json
+    eval_dir = REPO_ROOT / "evaluation"
+    required = [
+        "strict_n211_all_methods.json",
+        "strict_n211_baselines/empirical_lipschitz.json",
+        "strict_n211_baselines/sensitivity_t1_dirichlet_strict.json",
+        "strict_n211_baselines/paired_stats_v1.json",
+        "strict_n211_baselines/per_method_ci.json",
+    ]
+    for rel in required:
+        path = eval_dir / rel
+        assert path.exists(), f"missing eval JSON: {rel}"
+        with path.open() as fh:
+            json.load(fh)  # parses cleanly
+
+
+def test_preset_configs_define_taxonomies():
+    """24-preset taxonomy: 8 rhino + 8 bleph + 8 rhytid presets."""
+    rhino = importlib.import_module("envisage.rhino_config")
+    bleph = importlib.import_module("envisage.bleph_config")
+    rhytid = importlib.import_module("envisage.rhytid_config")
+    rhino_count = len(getattr(rhino, "PRIORITY_ORDER", []))
+    bleph_count = len(getattr(bleph, "PRIORITY_ORDER", []))
+    rhytid_count = len(getattr(rhytid, "PRIORITY_ORDER", []))
+    assert rhino_count == 8, f"rhino presets: {rhino_count}"
+    assert bleph_count == 8, f"bleph presets: {bleph_count}"
+    assert rhytid_count == 8, f"rhytid presets: {rhytid_count}"

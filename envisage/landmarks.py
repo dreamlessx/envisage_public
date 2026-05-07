@@ -43,15 +43,39 @@ LEFT_EYELID = LEFT_EYE_UPPER + LEFT_EYE_LOWER
 RIGHT_EYELID = RIGHT_EYE_UPPER + RIGHT_EYE_LOWER
 EYELIDS_ALL = sorted(set(LEFT_EYELID + RIGHT_EYELID))
 
-# Upper eyelid skin fold only (for blepharoplasty, smaller mask)
-LEFT_UPPER_LID_FOLD = [246, 161, 160, 159, 158, 157, 173, 56, 28, 27, 29, 30]
-RIGHT_UPPER_LID_FOLD = [466, 388, 387, 386, 385, 384, 398, 286, 258, 257, 259, 260]
+# Upper eyelid skin fold + brow region (for blepharoplasty mask).
+# Extends the convex hull from the eyebrow down to the lash line so the
+# hard-mask composite allows the model to edit the full hooded skin region.
+# Lid margin: 246/466-series (upper lash line)
+# Periorbital fold: 56, 28-30 (medial) / 286, 258-260 (right medial)
+# Left brow (FACEMESH_LEFT_EYEBROW): 55, 65, 52, 53, 46, 70, 63, 105, 66, 107
+# Right brow (FACEMESH_RIGHT_EYEBROW): 285, 295, 282, 283, 276, 300, 293, 334, 296, 336
+LEFT_UPPER_LID_FOLD = [
+    246, 161, 160, 159, 158, 157, 173,  # upper lash line
+    56, 28, 27, 29, 30,                  # periorbital fold
+    55, 65, 52, 53, 46, 70, 63, 105, 66, 107,  # left eyebrow
+]
+RIGHT_UPPER_LID_FOLD = [
+    466, 388, 387, 386, 385, 384, 398,   # upper lash line
+    286, 258, 257, 259, 260,             # periorbital fold
+    285, 295, 282, 283, 276, 300, 293, 334, 296, 336,  # right eyebrow
+]
 UPPER_LIDS_ONLY = sorted(set(LEFT_UPPER_LID_FOLD + RIGHT_UPPER_LID_FOLD))
 
 JAW_CONTOUR = [
     10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
     397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
     172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
+]
+
+# Lower jaw only: ear → mandible → chin → ear. NO temples/forehead/cheeks.
+LOWER_JAW = [
+    # Left: ear to chin
+    454, 323, 361, 288, 397, 365,
+    # Chin: left to right
+    379, 378, 400, 377, 152, 148, 176, 149, 150,
+    # Right: chin to ear
+    136, 172, 58, 132,
 ]
 CHIN = [152, 148, 176, 149, 150, 136, 172, 58, 132, 377, 400, 378, 379, 365, 397]
 
@@ -66,7 +90,7 @@ PROCEDURE_LANDMARKS: dict[str, list[int]] = {
     "rhinoplasty": NOSE_ALL,
     "blepharoplasty": UPPER_LIDS_ONLY,
     "orthognathic": JAW_CONTOUR + CHIN,
-    "rhytidectomy": JAW_CONTOUR + FACE_OVAL,
+    "rhytidectomy": JAW_CONTOUR,  # jaw contour only; generate_adaptive_rhytid_mask extends to neck
 }
 
 
@@ -151,7 +175,7 @@ def _extract_tasks(rgb: np.ndarray, w: int, h: int) -> FaceLandmarks | None:
 
     import urllib.request
 
-    model_path = Path("/tmp/face_landmarker.task")
+    model_path = Path("/tmp/envisage_face_landmarker.task")
     if not model_path.exists():
         url = (
             "https://storage.googleapis.com/mediapipe-models/"
@@ -192,8 +216,7 @@ def get_region_points(
 
     Args:
         landmarks: Full 478-point landmarks.
-        procedure: One of 'rhinoplasty', 'blepharoplasty', 'orthognathic',
-            'rhytidectomy'.
+        procedure: One of 'rhinoplasty', 'blepharoplasty', 'rhytidectomy', 'orthognathic'.
 
     Returns:
         (N, 2) array of landmark points for the procedure region.
@@ -242,6 +265,69 @@ def measure_nose(landmarks: FaceLandmarks) -> dict[str, float]:
         "right_alar_x": float(right_alar[0]),
         "nasion_y": float(nasion[1]),
         "tip_y": float(tip[1]),
+    }
+
+
+def measure_nasal_symmetry(landmarks: FaceLandmarks) -> dict[str, float]:
+    """Measure nasal symmetry metrics for personalized prompting.
+
+    Returns:
+        Dict with alar_symmetry_ratio (1.0=perfect), tip_deviation_px,
+        dorsal_deviation_std, bridge_width_ratio (vs intercanthal distance).
+    """
+    pts = landmarks.points
+
+    # Facial midline from nasion through philtrum
+    nasion = pts[6] if 6 < len(pts) else pts[0]
+    philtrum = pts[164] if 164 < len(pts) else pts[0]
+    midline_x = (nasion[0] + philtrum[0]) / 2.0
+
+    # Alar symmetry
+    left_alar = pts[48] if 48 < len(pts) else pts[0]
+    right_alar = pts[278] if 278 < len(pts) else pts[0]
+    left_dist = abs(midline_x - left_alar[0])
+    right_dist = abs(right_alar[0] - midline_x)
+    alar_symmetry = min(left_dist, right_dist) / max(left_dist, right_dist, 1.0)
+
+    # Tip deviation from midline
+    tip = pts[1] if 1 < len(pts) else pts[0]
+    tip_deviation = float(tip[0] - midline_x)
+
+    # Dorsal midline deviation (straightness)
+    bridge_pts = pts[[i for i in NOSE_DORSUM if i < len(pts)]]
+    dorsal_deviation = float(np.std(bridge_pts[:, 0] - midline_x)) if len(bridge_pts) > 2 else 0.0
+
+    # Alar width vs intercanthal distance
+    left_inner = pts[133] if 133 < len(pts) else pts[33]
+    right_inner = pts[362] if 362 < len(pts) else pts[263]
+    icd = abs(right_inner[0] - left_inner[0])
+    alar_width = abs(right_alar[0] - left_alar[0])
+    bridge_width_ratio = alar_width / max(icd, 1.0)
+
+    # Tip width (bulbosity) — use actual tip landmarks, not alar base
+    # Landmarks 2 (left tip), 98 (right tip) define the tip lobule width
+    left_tip_lm = pts[2] if 2 < len(pts) else pts[1]
+    right_tip_lm = pts[98] if 98 < len(pts) else pts[1]
+    tip_width = abs(right_tip_lm[0] - left_tip_lm[0])
+    tip_bulbosity = tip_width / max(alar_width, 1.0)
+
+    # alar_width_rel: alar_width normalized by ICD.
+    # This is the fractional unit used by gt_analysis and the fidelity gate.
+    # Consistent with detect_rhino_changes which computes:
+    #   (post_alar - pre_alar) / pre_alar to get relative change.
+    # Here we output alar_width / ICD (absolute ratio) as the canonical measurement.
+    alar_width_rel = alar_width / max(icd, 1.0)
+
+    return {
+        "alar_symmetry_ratio": float(alar_symmetry),
+        "tip_deviation_px": tip_deviation,
+        "dorsal_deviation_std": dorsal_deviation,
+        "bridge_width_ratio": float(bridge_width_ratio),
+        "tip_bulbosity": float(tip_bulbosity),
+        "midline_x": float(midline_x),
+        "alar_width": float(alar_width),
+        "intercanthal_distance": float(icd),
+        "alar_width_rel": float(alar_width_rel),
     }
 
 

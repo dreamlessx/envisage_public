@@ -7,7 +7,6 @@ Supported procedures:
   - rhinoplasty: nose dorsum + tip + wings
   - blepharoplasty: upper/lower eyelids
   - orthognathic: jaw contour + chin
-  - rhytidectomy: jaw contour + face oval (adaptive contour-following mask)
 
 Each mask is:
   1. Convex hull of procedure-specific landmarks
@@ -31,9 +30,14 @@ from .landmarks import (
     get_region_points,
     measure_eyelid_hooding,
     measure_jaw,
+    LEFT_EYE_UPPER,
+    LEFT_EYE_LOWER,
+    RIGHT_EYE_UPPER,
+    RIGHT_EYE_LOWER,
     LEFT_UPPER_LID_FOLD,
     RIGHT_UPPER_LID_FOLD,
     JAW_CONTOUR,
+    LOWER_JAW,
 )
 
 log = logging.getLogger(__name__)
@@ -187,14 +191,49 @@ def generate_adaptive_bleph_mask(
     left_dilation = int(config.dilation_px * (max_hood / max(left_hood, 0.1)))
     right_dilation = int(config.dilation_px * (max_hood / max(right_hood, 0.1)))
 
-    # Clamp to reasonable range
-    left_dilation = max(5, min(left_dilation, config.dilation_px * 3))
-    right_dilation = max(5, min(right_dilation, config.dilation_px * 3))
+    # SEVERE-HOODING MODE: only triggered for clinically severe hooding
+    # where the obscuring skin droop physically overlaps the lid margin.
+    # `crease_to_brow / crease_to_lash` ratio INCREASES with hooding (hood
+    # pushes the crease close to lash, so crease-to-lash shrinks).
+    # 2026-04-30 v31 REVERT to threshold 1.5. v26 with threshold 1.5 had
+    # severe mode firing for both case 125 (hood ~2.0) AND case 53
+    # (hood ~1.7) — and the user explicitly said "i like v26". I wrongly
+    # called v26's case 53 result "over-ablative" in v27 and bumped threshold
+    # to 1.95 which DISABLED severe mode for case 53 → reverted to standard
+    # mask which gives near-passthrough. The actual v26 case 53 lift was the
+    # severe-mode behavior the user wanted preserved.
+    # Empirical hood values:
+    #   case 125 (severe by eye): L=2.17 R=1.97
+    #   case 53 (good baseline per user): L=1.64 R=1.89
+    # Threshold 1.5 catches both. Brow subtract + iris radius 0.70 (kept from
+    # v28+) fix the eye-color and brow-shape preservation issues without
+    # removing the lift.
+    # ENVISAGE_BLEPH_SEVERE_THRESHOLD env override (default 1.5).
+    import os as _os
+    severe_threshold = float(_os.environ.get("ENVISAGE_BLEPH_SEVERE_THRESHOLD", "1.5"))
+    severe_mult = float(_os.environ.get("ENVISAGE_BLEPH_SEVERE_MULT", "2.5"))
+    left_severe = left_hood > severe_threshold
+    right_severe = right_hood > severe_threshold
+    if left_severe:
+        left_dilation = int(left_dilation * severe_mult)
+        log.info("Bleph SEVERE mode for LEFT eye (hood=%.3f > %.2f)", left_hood, severe_threshold)
+    if right_severe:
+        right_dilation = int(right_dilation * severe_mult)
+        log.info("Bleph SEVERE mode for RIGHT eye (hood=%.3f > %.2f)", right_hood, severe_threshold)
+
+    # Clamp to reasonable range. In severe mode allow up to 5x base
+    # (was 3x) — bleph mask coverage may rise from 4.3% to 10-12% which
+    # is appropriate for a full eye-region repaint.
+    max_mult = 5 if (left_severe or right_severe) else 3
+    left_dilation = max(5, min(left_dilation, config.dilation_px * max_mult))
+    right_dilation = max(5, min(right_dilation, config.dilation_px * max_mult))
 
     mask = np.zeros((h, w), dtype=np.uint8)
 
-    # Left eye mask
-    left_pts = landmarks.points[[i for i in LEFT_UPPER_LID_FOLD if i < len(landmarks.points)]]
+    pts = landmarks.points
+
+    # Left eye: mask the skin fold ABOVE the lash line only
+    left_pts = pts[[i for i in LEFT_UPPER_LID_FOLD if i < len(pts)]]
     if len(left_pts) >= 3:
         hull = cv2.convexHull(left_pts.astype(np.int32))
         left_mask = np.zeros((h, w), dtype=np.uint8)
@@ -205,8 +244,8 @@ def generate_adaptive_bleph_mask(
             left_mask = cv2.dilate(left_mask, kernel, iterations=1)
         mask = np.maximum(mask, left_mask)
 
-    # Right eye mask
-    right_pts = landmarks.points[[i for i in RIGHT_UPPER_LID_FOLD if i < len(landmarks.points)]]
+    # Right eye: same
+    right_pts = pts[[i for i in RIGHT_UPPER_LID_FOLD if i < len(pts)]]
     if len(right_pts) >= 3:
         hull = cv2.convexHull(right_pts.astype(np.int32))
         right_mask = np.zeros((h, w), dtype=np.uint8)
@@ -216,6 +255,70 @@ def generate_adaptive_bleph_mask(
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
             right_mask = cv2.dilate(right_mask, kernel, iterations=1)
         mask = np.maximum(mask, right_mask)
+
+    # Exclude the eye opening (iris, pupil, lashes) — but only for the
+    # eye that is NOT in severe hooding mode. For severe-hooded eyes the
+    # obscuring skin droops INTO the eye-opening region (the "hood" physically
+    # overlaps the upper lid margin and the medial corner). When we cut out
+    # the eye opening for those eyes the mask loses exactly the pixels FLUX-
+    # Fill needs to repaint to reveal a clean lid. v25b 2026-04-30: case 125
+    # output read as passthrough across v23+v24b because severe-hooded eyes
+    # had the hood inside the cut-out region. Fix: per-eye severe flag drives
+    # whether we cut the opening or only cut a tight iris-protection circle.
+    eye_pairs = [
+        (LEFT_EYE_UPPER, LEFT_EYE_LOWER, left_severe),
+        (RIGHT_EYE_UPPER, RIGHT_EYE_LOWER, right_severe),
+    ]
+    for eye_upper, eye_lower, eye_is_severe in eye_pairs:
+        upper_pts = pts[[i for i in eye_upper if i < len(pts)]].astype(np.int32)
+        lower_pts = pts[[i for i in eye_lower if i < len(pts)]].astype(np.int32)
+        if len(upper_pts) >= 3 and len(lower_pts) >= 3:
+            if eye_is_severe:
+                # Iris protection: circle at eye centroid covering iris+pupil
+                # AND the inner sclera around the iris. Lid margin + lash line
+                # stay INSIDE the mask so FLUX-Fill repaints them.
+                # Radius factor 2026-04-30 v28: 0.45 → 0.70. v26/v27 case 53
+                # had iris color shift because r=6-8px only protected the
+                # central pupil — outer iris ring got repainted by FLUX. 0.70
+                # of eye height gives r ≈ 10-13px which covers the actual
+                # visible iris (the user-flagged eye color preservation issue).
+                all_eye = np.vstack([upper_pts, lower_pts])
+                cx = int(all_eye[:, 0].mean())
+                cy = int(all_eye[:, 1].mean())
+                eye_h = int((all_eye[:, 1].max() - all_eye[:, 1].min()) * 0.70)
+                eye_h = max(eye_h, 6)
+                iris_protect = np.zeros((h, w), dtype=np.uint8)
+                cv2.circle(iris_protect, (cx, cy), eye_h, 255, -1)
+                mask = cv2.subtract(mask, iris_protect)
+                log.info(
+                    "Bleph SEVERE: iris protection (r=%d) for eye centered (%d,%d) — FLUX paints lid margin + lash",
+                    eye_h, cx, cy,
+                )
+            else:
+                # Standard eye-opening cutout (non-severe).
+                eye_poly = np.vstack([upper_pts, lower_pts[::-1]])
+                eye_opening = np.zeros((h, w), dtype=np.uint8)
+                cv2.fillPoly(eye_opening, [eye_poly], 255)
+                eye_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+                eye_opening = cv2.dilate(eye_opening, eye_kernel)
+                mask = cv2.subtract(mask, eye_opening)
+
+    # 2026-04-30 v31: brow halo dilated by 21x21 (10px) in v28+ was eating
+    # too much of the upper-lid fold mask, especially in severe mode where
+    # the mask dilation reaches into the brow zone. v26 case 53's lift came
+    # from the severe-mode mask covering the full fold up to the brow. v31
+    # uses a tight 7x7 (3px) halo — protects brow hair edges without
+    # shrinking the available lift area.
+    LEFT_EYEBROW = [70, 63, 105, 66, 107, 55, 65, 52, 53, 46]
+    RIGHT_EYEBROW = [300, 293, 334, 296, 336, 285, 295, 282, 283, 276]
+    for brow_idx in (LEFT_EYEBROW, RIGHT_EYEBROW):
+        brow_pts = pts[[i for i in brow_idx if i < len(pts)]].astype(np.int32)
+        if len(brow_pts) >= 3:
+            brow_canvas = np.zeros((h, w), dtype=np.uint8)
+            cv2.fillConvexPoly(brow_canvas, cv2.convexHull(brow_pts), 255)
+            brow_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+            brow_canvas = cv2.dilate(brow_canvas, brow_kernel)
+            mask = cv2.subtract(mask, brow_canvas)
 
     # Feather
     if config.feather_sigma > 0:
@@ -229,6 +332,175 @@ def generate_adaptive_bleph_mask(
     log.info(
         "Adaptive bleph mask: L_dil=%d R_dil=%d L_hood=%.2f R_hood=%.2f strength=%.2f",
         left_dilation, right_dilation, left_hood, right_hood, strength,
+    )
+    return _pad_to_multiple(mask_f, config.pad_to_multiple)
+
+
+# ---------------------------------------------------------------------------
+# Preset-aware blepharoplasty mask (upper + lower + lateral families)
+# ---------------------------------------------------------------------------
+
+_UPPER_BLEPH_PRESETS = frozenset({
+    "upper_skin_excision", "crease_restoration", "upper_dehooding",
+    "lid_symmetry", "fat_pad_reduction",
+})
+_LOWER_BLEPH_PRESETS = frozenset({"lower_bag_reduction", "tear_trough_smoothing"})
+_LATERAL_BLEPH_PRESETS = frozenset({"crow_feet_softening"})
+
+
+def _add_upper_lid_region(
+    mask: np.ndarray,
+    pts: np.ndarray,
+    config: MaskConfig,
+) -> None:
+    """Add upper-lid fold region to the mask in-place."""
+    for fold_idx in (LEFT_UPPER_LID_FOLD, RIGHT_UPPER_LID_FOLD):
+        lid_pts = pts[[i for i in fold_idx if i < len(pts)]]
+        if len(lid_pts) < 3:
+            continue
+        hull = cv2.convexHull(lid_pts.astype(np.int32))
+        sub = np.zeros_like(mask)
+        cv2.fillConvexPoly(sub, hull, 255)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                           (config.dilation_px, config.dilation_px))
+        sub = cv2.dilate(sub, kernel, iterations=1)
+        mask[:] = np.maximum(mask, sub)
+
+
+def _add_lower_lid_region(
+    mask: np.ndarray,
+    pts: np.ndarray,
+    include_tear_trough: bool,
+) -> None:
+    """Add lower-lid bag region to the mask. Extends downward from the
+    lower lash line. If include_tear_trough, extends medially toward the
+    nasojugal groove.
+    """
+    for lower_idx in (LEFT_EYE_LOWER, RIGHT_EYE_LOWER):
+        lid_pts = pts[[i for i in lower_idx if i < len(pts)]].astype(np.int32)
+        if len(lid_pts) < 3:
+            continue
+        # Eye height as proxy for bag extent
+        ymin = lid_pts[:, 1].min()
+        ymax = lid_pts[:, 1].max()
+        eye_h = max(ymax - ymin, 10)
+        bag_extent = int(eye_h * 3.0)  # extend ~3x eye height downward
+
+        # Build a polygon: lower lid margin + extended points below it
+        margin_top = lid_pts.copy()
+        margin_bottom = lid_pts.copy()
+        margin_bottom[:, 1] += bag_extent
+        # Optionally extend medially for tear trough
+        if include_tear_trough:
+            inner_idx = 0  # MediaPipe inner canthus is first in LEFT_EYE_LOWER
+            margin_bottom[inner_idx, 0] -= int(eye_h * 0.8)  # move medial
+            margin_bottom[inner_idx, 1] += int(eye_h * 0.5)
+
+        poly = np.concatenate([margin_top, margin_bottom[::-1]], axis=0)
+        sub = np.zeros_like(mask)
+        cv2.fillPoly(sub, [poly], 255)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+        sub = cv2.dilate(sub, kernel, iterations=1)
+        mask[:] = np.maximum(mask, sub)
+
+
+def _add_lateral_periorbital_region(
+    mask: np.ndarray,
+    pts: np.ndarray,
+) -> None:
+    """Small lateral patches outside each outer canthus for crow's feet."""
+    # Outer canthi: 33 (left), 263 (right) in MediaPipe
+    for canthus_idx in (33, 263):
+        if canthus_idx >= len(pts):
+            continue
+        cx, cy = int(pts[canthus_idx][0]), int(pts[canthus_idx][1])
+        direction = +1 if canthus_idx == 33 else -1
+        # Small ellipse lateral to the canthus
+        center = (cx - 15 * direction, cy)
+        axes = (22, 14)
+        sub = np.zeros_like(mask)
+        cv2.ellipse(sub, center, axes, 0, 0, 360, 255, -1)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
+        sub = cv2.dilate(sub, kernel, iterations=1)
+        mask[:] = np.maximum(mask, sub)
+
+
+def _cut_out_eye_openings(
+    mask: np.ndarray,
+    pts: np.ndarray,
+    dilate_px: int = 7,
+) -> None:
+    """Subtract the iris/sclera/lash region so diffusion can't touch them."""
+    for upper_idx, lower_idx in (
+        (LEFT_EYE_UPPER, LEFT_EYE_LOWER),
+        (RIGHT_EYE_UPPER, RIGHT_EYE_LOWER),
+    ):
+        upper = pts[[i for i in upper_idx if i < len(pts)]].astype(np.int32)
+        lower = pts[[i for i in lower_idx if i < len(pts)]].astype(np.int32)
+        if len(upper) < 3 or len(lower) < 3:
+            continue
+        eye_poly = np.vstack([upper, lower[::-1]])
+        cutout = np.zeros_like(mask)
+        cv2.fillPoly(cutout, [eye_poly], 255)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                           (dilate_px * 2 + 1, dilate_px * 2 + 1))
+        cutout = cv2.dilate(cutout, kernel)
+        mask[:] = cv2.subtract(mask, cutout)
+
+
+def generate_preset_aware_bleph_mask(
+    landmarks: FaceLandmarks,
+    active_keys: set[str] | list[str],
+    config: MaskConfig | None = None,
+) -> np.ndarray:
+    """Build a blepharoplasty mask based on which presets are active.
+
+    - Upper-family presets → upper-lid fold mask.
+    - Lower-family presets (bag, tear trough) → lower-lid region below the
+      lash line, extended down ~3x eye height. Tear trough also extends
+      medially toward the nasojugal groove.
+    - Lateral presets (crow's feet) → small ellipses outside each outer
+      canthus.
+    - Always subtracts the eye-opening (iris/sclera/lashes) with a 7px
+      safety margin so diffusion cannot overwrite those regions.
+
+    Returns a float32 mask in [0, 1], padded to `config.pad_to_multiple`.
+    """
+    if config is None:
+        config = MaskConfig(dilation_px=20, feather_sigma=12)
+
+    active = set(active_keys or [])
+    h, w = landmarks.image_size[1], landmarks.image_size[0]
+    mask = np.zeros((h, w), dtype=np.uint8)
+    pts = landmarks.points
+
+    has_upper = bool(active & _UPPER_BLEPH_PRESETS)
+    has_lower = bool(active & _LOWER_BLEPH_PRESETS)
+    has_lateral = bool(active & _LATERAL_BLEPH_PRESETS)
+
+    # Safe default: if nothing flagged, target upper lid so the pipeline
+    # does the most common bleph by default.
+    if not (has_upper or has_lower or has_lateral):
+        has_upper = True
+
+    if has_upper:
+        _add_upper_lid_region(mask, pts, config)
+    if has_lower:
+        _add_lower_lid_region(mask, pts, include_tear_trough="tear_trough_smoothing" in active)
+    if has_lateral:
+        _add_lateral_periorbital_region(mask, pts)
+
+    # Always protect the eye openings themselves
+    _cut_out_eye_openings(mask, pts, dilate_px=7)
+
+    if config.feather_sigma > 0:
+        mask = cv2.GaussianBlur(mask, (0, 0), sigmaX=config.feather_sigma)
+
+    mask_f = mask.astype(np.float32) / 255.0
+
+    log.info(
+        "Preset-aware bleph mask: upper=%s lower=%s lateral=%s (active=%s)",
+        has_upper, has_lower, has_lateral, sorted(active),
     )
     return _pad_to_multiple(mask_f, config.pad_to_multiple)
 
@@ -259,8 +531,8 @@ def generate_adaptive_rhytid_mask(
 
     mask = np.zeros((h, w), dtype=np.uint8)
 
-    # Build jaw contour polygon that extends to image bottom
-    jaw_indices = [i for i in JAW_CONTOUR if i < len(pts)]
+    # Use LOWER_JAW only — NO temples/forehead/cheeks
+    jaw_indices = [i for i in LOWER_JAW if i < len(pts)]
     if len(jaw_indices) < 5:
         return _fallback_mask(w, h, "rhytidectomy", config)
 
@@ -279,13 +551,112 @@ def generate_adaptive_rhytid_mask(
     # Fill below-jaw region (neck + jawline)
     cv2.fillPoly(mask, [contour], 255)
 
+    # AGGRESSIVE rhyt mode 2026-04-30: extend mask UPWARD to cover lower-face
+    # wrinkle zones (cheeks, nasolabial folds, marionette lines, lower
+    # forehead). Without this, FLUX-Fill never sees the wrinkle pixels —
+    # the surgical mask is jaw+neck only, and post-composite classical CV
+    # cannot reproduce volumetric facelift lift. ENVISAGE_RHYT_AGGRESSIVE=1
+    # enables this mask expansion. Goal: FLUX-Fill regenerates the wrinkled
+    # area with a younger / smoother appearance directed by the prompt.
+    import os as _os
+    # 2026-04-30 v29: revert default to 0 per user "it's not a mask thing
+    # for rhyt; u just need to clean up outside mask wrinkles". Mask stays
+    # jaw+neck. Outside-mask wrinkle cleanup is now done post-composite via
+    # CodeFormer (see pipeline.py rhyt block) — face-restoration model
+    # smooths wrinkles while preserving identity, stubble, earrings, brows.
+    if _os.environ.get("ENVISAGE_RHYT_AGGRESSIVE", "0") == "1":
+        try:
+            # MOUTH_OUTER not in landmarks.py — inline mediapipe outer-mouth indices.
+            MOUTH_OUTER = [
+                61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409,
+                270, 269, 267, 0, 37, 39, 40, 185,
+            ]
+            # Build extended mask covering: jaw + neck + cheeks +
+            # nasolabial region + chin/marionette area. Use convex hull
+            # of (jaw + mouth + cheek-area) to capture lower face.
+            extra_pts: list[list[int]] = []
+            mouth_idx = [i for i in MOUTH_OUTER if i < len(landmarks.points)]
+            if len(mouth_idx) >= 3:
+                m_pts = landmarks.points[mouth_idx].astype(np.int32)
+                # Take mouth UPPER bound (highest y) and extend laterally
+                mouth_top_y = int(m_pts[:, 1].min()) - 10  # lift slightly above lip
+                mouth_left = int(m_pts[:, 0].min()) - 25
+                mouth_right = int(m_pts[:, 0].max()) + 25
+                extra_pts.extend([
+                    [mouth_left, mouth_top_y],
+                    [mouth_right, mouth_top_y],
+                ])
+            # Cheek anchor: use eye-bottom landmarks if available; else
+            # fall back to mouth_top_y - 30
+            try:
+                from .landmarks import LEFT_EYE_LOWER, RIGHT_EYE_LOWER
+                eye_low_pts = landmarks.points[
+                    [i for i in (LEFT_EYE_LOWER + RIGHT_EYE_LOWER) if i < len(landmarks.points)]
+                ].astype(np.int32)
+                if len(eye_low_pts) > 0:
+                    # Anchor 25 px below eye bottom
+                    cheek_y = int(eye_low_pts[:, 1].max()) + 25
+                    extra_pts.extend([
+                        [int(sorted_jaw[:, 0].min()), cheek_y],
+                        [int(sorted_jaw[:, 0].max()), cheek_y],
+                    ])
+            except Exception:
+                pass
+
+            if extra_pts:
+                # Combine jaw + extras into hull
+                all_pts = np.vstack([sorted_jaw, np.array(extra_pts, dtype=np.int32)])
+                hull = cv2.convexHull(all_pts)
+                expanded = np.zeros((h, w), dtype=np.uint8)
+                cv2.fillConvexPoly(expanded, hull, 255)
+                # Add neck (everything below jaw)
+                cv2.fillPoly(expanded, [contour], 255)
+                # CUT OUT eyes + mouth + brows so FLUX doesn't regenerate
+                # those (preserved by composite outside the mask)
+                try:
+                    from .landmarks import (
+                        LEFT_EYE_UPPER, LEFT_EYE_LOWER,
+                        RIGHT_EYE_UPPER, RIGHT_EYE_LOWER,
+                    )
+                    # MOUTH_OUTER not exported from landmarks.py; inline.
+                    _MO = [
+                        61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291,
+                        409, 270, 269, 267, 0, 37, 39, 40, 185,
+                    ]
+                    LEFT_EYEBROW = [70, 63, 105, 66, 107, 55, 65, 52, 53, 46]
+                    RIGHT_EYEBROW = [300, 293, 334, 296, 336, 285, 295, 282, 283, 276]
+                    cutout_groups = [
+                        LEFT_EYE_UPPER + LEFT_EYE_LOWER,
+                        RIGHT_EYE_UPPER + RIGHT_EYE_LOWER,
+                        LEFT_EYEBROW,
+                        RIGHT_EYEBROW,
+                        _MO,
+                    ]
+                    for g in cutout_groups:
+                        idx = [i for i in g if i < len(landmarks.points)]
+                        if len(idx) >= 3:
+                            pts_g = landmarks.points[idx].astype(np.int32)
+                            feat = np.zeros((h, w), dtype=np.uint8)
+                            cv2.fillConvexPoly(feat, cv2.convexHull(pts_g), 255)
+                            feat = cv2.dilate(
+                                feat,
+                                cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)),
+                            )
+                            expanded = cv2.subtract(expanded, feat)
+                except Exception:
+                    pass
+                mask = expanded
+                log.info("Rhytid AGGRESSIVE mask: expanded to lower face, %d px", int(mask.sum() / 255))
+        except Exception as e:
+            log.warning("rhyt aggressive mask failed: %s", e)
+
     # Check if image includes significant neck area
     chin_y = jaw["chin_y"]
     neck_extent = h - chin_y
     has_neck = neck_extent > h * 0.1  # at least 10% of image below chin
 
     if not has_neck:
-        # Image cropped at chin; only do jawline, skip neck
+        # Image cropped at chin, only do jawline, skip neck
         # Restrict mask to a band around the jaw contour
         jaw_band = np.zeros((h, w), dtype=np.uint8)
         for i in range(len(sorted_jaw) - 1):
@@ -371,3 +742,39 @@ def _pad_to_multiple(mask: np.ndarray, multiple: int) -> np.ndarray:
     padded = np.zeros((new_h, new_w), dtype=mask.dtype)
     padded[:h, :w] = mask
     return padded
+
+
+def erode_mask(mask: np.ndarray, px: int = 4, min_area: int = 50) -> np.ndarray:
+    """Shrink a soft mask while preserving the original if erosion collapses it.
+
+    Used for Stage 2 of coarse-to-fine pipelines to focus on the core
+    surgical region while avoiding boundary artifacts.
+
+    Args:
+        mask: float32 mask [0, 1], potentially feathered.
+        px: Erosion radius in pixels.
+        min_area: Minimum area in pixels to keep the eroded version.
+
+    Returns:
+        (H, W) float32 mask [0, 1].
+    """
+    if px <= 0:
+        return mask.astype(np.float32, copy=True)
+
+    mask_f = mask.astype(np.float32, copy=False)
+    # Threshold to binary for morphological operations
+    binary = (mask_f > 0.5).astype(np.uint8) * 255
+    ksize = 2 * px + 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
+    eroded = cv2.erode(binary, kernel, iterations=1)
+
+    if cv2.countNonZero(eroded) < min_area:
+        log.warning(
+            "Mask erosion collapsed area below %d px; using original mask",
+            min_area,
+        )
+        return mask_f.copy()
+
+    # Feather the eroded result slightly to avoid sharp edges
+    soft = cv2.GaussianBlur(eroded, (0, 0), sigmaX=max(px / 2.0, 1.0))
+    return (soft.astype(np.float32) / 255.0).clip(0.0, 1.0)

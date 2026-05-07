@@ -279,7 +279,7 @@ def add_boundary_points(
 
     border = np.array(border, dtype=np.float32)
     src_out = np.vstack([src, border])
-    dst_out = np.vstack([dst, border])  # identity: no displacement at borders
+    dst_out = np.vstack([dst, border])  # identity (no displacement at borders)
     return src_out, dst_out
 
 
